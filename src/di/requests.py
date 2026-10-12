@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.admin.service import AdminService
@@ -17,6 +18,7 @@ from src.application.media.service import MediaService
 from src.application.quality_read.service import QualityReadService
 from src.application.reports.service import ReportsService
 from src.application.system.service import SystemService
+from src.di.model_requests import model_request_application
 from src.infrastructure.auth.identity import KeycloakIdentityGateway
 from src.infrastructure.persistence.admin_operations import PostgresAdminRepository
 from src.infrastructure.persistence.calls_operations import PostgresCallsRepository
@@ -30,6 +32,7 @@ from src.infrastructure.runtime.system import PostgresSystemProbe
 from src.infrastructure.storage.audio_access import StorageAudioReader
 from src.infrastructure.storage.recordings import build_storage
 from src.presentation.http.deps import system_dep, use_cases_dep
+from src.presentation.http.model_requests import model_request_dep, model_validation_error_response
 from src.presentation.http.responses import application_error_response
 from src.setting.config import Settings, get_settings
 
@@ -81,4 +84,6 @@ def install_dependencies(app: FastAPI) -> None:
     """Привязать абстрактную зависимость роутеров к сборке сценариев этого сервиса."""
     app.dependency_overrides[use_cases_dep] = request_application
     app.dependency_overrides[system_dep] = system_application
+    app.dependency_overrides[model_request_dep] = model_request_application
     app.exception_handler(ApplicationError)(application_error_response)
+    app.exception_handler(RequestValidationError)(model_validation_error_response)

@@ -54,7 +54,7 @@ def test_api_and_migrations_require_separate_database_credentials() -> None:
 
 @pytest.mark.parametrize("service", ("speech-ms", "migrate-speech"))
 def test_containers_receive_only_explicit_process_settings(service: str) -> None:
-    """Настройки Whisper, источников и LLM не передаются процессам API и миграций."""
+    """Настройки исполнителя не передаются процессам API и миграций."""
     spec = SERVICES[service]
     assert "env_file" not in spec
     worker_prefixes = (
@@ -123,6 +123,20 @@ def test_api_can_reach_external_services_with_private_database_network() -> None
     assert set(SERVICES["speech-ms"]["networks"]) == {"default", "data"}
     assert SERVICES["migrate-speech"]["networks"] == ["data"]
     assert not COMPOSE["networks"].get("default", {}).get("internal", False)
+
+
+def test_api_receives_model_policy_and_worker_token_without_model_secret() -> None:
+    """API готовит запросы, а ключ инференса остаётся в окружении исполнителя."""
+    environment = SERVICES["speech-ms"]["environment"]
+    for name in (
+        "SPEECH_WORKER_API_TOKEN",
+        "SPEECH_ANALYSIS_LLM_MODEL",
+        "SPEECH_ANALYSIS_LLM_FREE_MODEL",
+        "SPEECH_ANALYSIS_LLM_CANDIDATE_MODEL",
+        "SPEECH_ANALYSIS_LLM_MAX_TOKENS",
+    ):
+        assert name in environment
+    assert "SPEECH_ANALYSIS_LLM_API_KEY" not in environment
 
 
 def test_compose_configuration_is_documented_in_environment_template() -> None:

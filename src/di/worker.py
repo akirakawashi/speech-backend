@@ -23,9 +23,9 @@ def run_worker(args: argparse.Namespace) -> int:
     lanes = parse_lanes(args.lanes)
     stages = parse_stages(args.stages)
 
+    from src.di.analysis import build_analysis_client
     from src.di.pipeline import build_registry
     from src.di.sources import build_worker_source
-    from src.infrastructure.clients.analysis import build_analysis_client
     from src.infrastructure.clients.whisper import build_whisper_client
     from src.infrastructure.persistence.session import (
         get_speech_ms_engine,

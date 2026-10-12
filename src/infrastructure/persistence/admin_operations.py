@@ -515,9 +515,9 @@ class PostgresAdminRepository:
                 lambda: _http_probe(str(settings.speech_whisper_base_url), "/models"),
             ),
             _probe(
-                "dify",
-                bool(settings.speech_dify_base_url),
-                lambda: _http_probe(str(settings.speech_dify_base_url), ""),
+                "llm",
+                bool(settings.speech_analysis_llm_base_url),
+                lambda: _http_probe(str(settings.speech_analysis_llm_base_url), "/models"),
             ),
         )
         return PipelineResponse(

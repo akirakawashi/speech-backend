@@ -1,9 +1,4 @@
-"""Разбор ответов модели: нормализация, классификация, роли и причины обращения.
-
-Проверяем допустимые ответы и отказы Python-сценария на неполные или неверные
-данные. YAML-сценарии Dify и их совместимость с воркером проверяются в проекте
-speech-worker; исходники соседнего проекта этим тестам не нужны.
-"""
+"""Разбор ответов модели: форма, роли, классификатор и причины обращения."""
 
 from __future__ import annotations
 
@@ -136,8 +131,8 @@ def test_an_answer_without_json_is_named_as_such() -> None:
 
 def test_an_empty_workflow_answer_is_named_as_such() -> None:
     """Пустой выход воркфлоу — это отказ воркфлоу, а не ответ модели."""
-    assert describe_raw_problem({}) == "the workflow returned no answer at all"
-    assert describe_raw_problem({"answer": "   "}) == "the workflow returned no answer at all"
+    assert describe_raw_problem({}) == "the model returned no answer at all"
+    assert describe_raw_problem({"answer": "   "}) == "the model returned no answer at all"
 
 
 def test_a_good_answer_has_no_problem_to_describe() -> None:
@@ -205,7 +200,7 @@ def test_a_missing_path_is_refused(value: Any) -> None:
 
 
 def test_the_already_parsed_form_is_left_alone() -> None:
-    """Если узел кода в Dify когда-нибудь заработает, ломать ничего не придётся."""
+    """Уже разобранный JSON совместим с прикладным разбором."""
     parsed = dict(_GOOD)
 
     assert normalise_outputs(parsed) is parsed

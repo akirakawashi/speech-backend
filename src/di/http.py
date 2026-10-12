@@ -1,9 +1,8 @@
 """Точка входа `speech-ms`.
 
-Отличие от registry/rag/prompt: этот сервис обслуживает браузер, а не соседний
-сервис. Поэтому у него нет ключа сервиса и mTLS — его вызывает `speech-edge`
-(nginx), а пользователя проверяет Keycloak. По форме он ближе к `backend`, чем к
-внутренним микросервисам.
+Пользовательские маршруты обслуживают браузер через `speech-edge`; вход
+проверяет Keycloak. Служебная подготовка заданий для воркера имеет отдельный
+Bearer-токен и не использует пользовательскую сессию.
 
 Документация Swagger включена только вне продуктива: фронтенд генерирует типы из
 `openapi.json`, и разработчику удобно открыть `/docs` на стенде, но публиковать
@@ -21,6 +20,7 @@ from src.presentation.http.audio_cookie import AudioCookieMiddleware
 from src.presentation.http.auth_routes import router as auth_router
 from src.presentation.http.dashboard_routes import router as dashboard_router
 from src.presentation.http.media_routes import router as media_router
+from src.presentation.http.model_requests import router as model_requests_router
 from src.presentation.http.quality_routes import router as quality_router
 from src.presentation.http.report_routes import router as report_router
 from src.presentation.http.routes import router as api_v1_router
@@ -67,4 +67,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(report_router)
     app.include_router(quality_router)
     app.include_router(dashboard_router)
+    app.include_router(model_requests_router)
     return app

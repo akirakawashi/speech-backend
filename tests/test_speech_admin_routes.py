@@ -440,7 +440,7 @@ async def test_the_pipeline_snapshot_does_not_fail_when_a_dependency_is_down(api
     body = response.json()
     assert {row["lane"] for row in body["lanes"]} == {"daily", "backfill"}
     names = {row["name"] for row in body["dependencies"]}
-    assert names == {"storage", "whisper", "dify"}
+    assert names == {"storage", "whisper", "llm"}
     assert all(row["configured"] is False for row in body["dependencies"]), (
         "в тестовых настройках зависимостей нет, и это должно быть видно как «не настроено»"
     )

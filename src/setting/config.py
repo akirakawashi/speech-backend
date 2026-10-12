@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     )
 
     # Бюджет соединений движка. Объявлен, а не оставлен умолчанием SQLAlchemy
-    # (5 + 10 на движок): кластер Postgres общий с Dify, и умолчание незаметно
+    # (5 + 10 на движок): кластер Postgres общий с LLM, и умолчание незаметно
     # до пика. В каждом процессе речи движок один; расчёт на весь конвейер — в
     # описании `get_speech_ms_sessionmaker` (`src/infrastructure/persistence/session.py`).
     db_pool_size: int = 5
@@ -202,7 +202,7 @@ class Settings(BaseSettings):
     # строки подключения и две учётные записи.
     #
     # REST: аутентификация заголовками `Username` и `X-API-Key` (раздел 2
-    # руководства). Базовый адрес включает версию, как у DIFY_BASE_URL: путь
+    # руководства). Базовый адрес включает версию, как у SPEECH_ANALYSIS_LLM_BASE_URL: путь
     # `/callrecord/download` дописывается к нему.
     speech_ncc_base_url: AnyHttpUrl | str = ""
     speech_ncc_username: str = ""
@@ -279,25 +279,20 @@ class Settings(BaseSettings):
     # пауз много.
     speech_whisper_vad_filter: bool = True
 
-    # Анализ звонка в Dify. Сценариями владеет speech-worker. Ключ — своего
-    # приложения Dify, а не агента чата: анализ отключается отдельно от чата.
-    speech_dify_base_url: str = ""
-    speech_dify_app_key: str = ""
-    # Приложение «Speech: причина обращения» (S-32): только причина, по
-    # расшифровке, для `python -m src.presentation.cli.fill_reasons`. Свой
-    # ключ: разбор звонка от него не зависит и работает без него.
-    speech_dify_reason_app_key: str = ""
-    # Отдельное приложение-кандидат для сравнения моделей.
-    speech_dify_candidate_app_key: str = ""
-    # Разговор на полчаса — это тысячи токенов на вход. Таймаут соотнесён с
-    # арендой задания анализа (300 с) и меньше её: клиент обязан сдаться
-    # раньше, чем задание отберут.
-    speech_dify_timeout_seconds: float = Field(default=120.0, ge=10.0, le=280.0)
+    # Бэкенд владеет промптами, версиями и выбором модели анализа.
+    speech_analysis_llm_base_url: str = ""
+    speech_analysis_llm_api_key: str = Field(default="", repr=False)
+    speech_analysis_llm_model: str = "qwen3.8-27b-fast"
+    speech_analysis_llm_free_model: str = "qwen3.8-27b"
+    speech_analysis_llm_candidate_model: str = ""
+    speech_analysis_llm_timeout_seconds: float = Field(default=120.0, ge=10.0, le=280.0)
+    speech_analysis_llm_max_tokens: int = Field(default=8192, ge=512, le=32768)
+    # Пустой служебный токен закрывает подготовку заданий для воркера.
+    speech_worker_api_token: str = Field(default="", repr=False)
 
     # Оценка звонков по скрипту (`python -m src.presentation.cli.evaluate`). Языковая
-    # модель напрямую, OpenAI-совместимым API (vLLM за `model-proxy`), а не
-    # воркфлоу Dify: скрипт и промпт живут в коде, и оценку можно проверить на
-    # любой совместимой модели. Адрес базовый, с `/v1` на конце.
+    # модель вызывается напрямую; скрипт и промпт оценки живут в коде.
+    # Адрес базовый, с `/v1` на конце.
     speech_quality_llm_base_url: str = ""
     speech_quality_llm_api_key: str = ""
     speech_quality_llm_model: str = "qwen3.8-27b-fast"

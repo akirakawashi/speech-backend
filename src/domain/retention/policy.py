@@ -2,7 +2,7 @@
 
 `the retention job`. Seven tables in this schema are append-only and grow on every chat
 turn. **Not one of them had a retention policy** -- no pruning code existed
-anywhere in the backend. On a cluster shared with Dify whose measured connection
+anywhere in the backend. On a cluster shared with LLM whose measured connection
 headroom is one, unbounded growth is not a housekeeping detail; it is
 an input to the physical-split decision this task has to make.
 
