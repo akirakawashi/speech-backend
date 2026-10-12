@@ -233,7 +233,7 @@ DI управляет временем жизни ресурсов: запуск
 HTTP запускается фабрикой:
 
 ```bash
-.venv/bin/uvicorn src.di.http:create_app --factory --port 8096
+uv run --locked uvicorn src.di.http:create_app --factory --port 8096
 ```
 
 Импорт `src.di.http` не читает окружение и не создаёт приложение. CLI находятся
@@ -241,10 +241,27 @@ HTTP запускается фабрикой:
 `main` обращается к сборке в DI. Это единственное разрешённое исключение для
 импорта `presentation` → `di`; HTTP-роутеры получают сборку через зависимости.
 
-В `app/` остаются только обёртки старых CLI и `app.speech_service.main:app`.
-Последняя создаёт приложение как явная совместимая ASGI-точка входа.
-Исходники и новые сценарии никогда не импортируют `app/`.
+12.10.2026 переходный пакет `app` удалён из `speech-backend`, сборки UV
+и Dockerfile. Бизнес-реализация в `src/` сохранена: эти файлы содержали только
+обёртки старых CLI и создание приложения через фабрику DI.
+
+CLI запускаются напрямую:
+
+```bash
+uv run --locked python -m src.presentation.cli.worker --help
+uv run --locked python -m src.presentation.cli.evaluate --help
+```
+
+Внешний `local-dev/run.sh` выбирает пакет CLI и HTTP-фабрику по структуре
+выбранного бэкенда. Для `speech-backend` и слоистой копии `whisper-backend`
+это `src.presentation.cli.*` и `src.di.http:create_app --factory`.
+Скрипты `all.sh` и `dashboard-demo.sh` проверяют новые пути в `src`;
+данные классификатора для демо читаются из `src/infrastructure/data`.
+Поддержка старой структуры остаётся в локальных скриптах для старых бэкендов.
+По умолчанию `run.sh` по-прежнему выбирает `whisper-backend`; для новой папки
+задайте `SPEECH_BACKEND=speech-backend`. Исходная копия не изменяется.
 
 JSON-справочники находятся в `infrastructure/data/`, проверяются правилами
-`domain/calls/catalogues.py` через application и включены в пакет через
-`tool.setuptools.package-data`. Проверять чтение нужно и из установленного wheel.
+`domain/calls/catalogues.py` через application. `uv_build` включает файлы
+выбранных модулей в пакет вместе с JSON. Проверять чтение нужно и из установленного
+wheel. Окружение и сборка описаны в [разработке](development.md#окружение).

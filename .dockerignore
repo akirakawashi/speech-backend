@@ -1,4 +1,6 @@
 .env
+.env.*
+.git/
 .venv/
 venv/
 .runtime/
@@ -16,3 +18,7 @@ coverage.xml
 tests/
 temp_inspect_db.py
 *.log
+*.egg-info/
+build/
+dist/
+.pytest-tmp/

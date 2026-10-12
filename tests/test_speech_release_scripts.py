@@ -139,14 +139,14 @@ def test_compose_reads_only_variables_the_build_writes() -> None:
         )
 
 
-def test_the_frontend_image_is_declared_where_the_operator_looks() -> None:
-    """Образ фронтенда речи объявлен в шаблоне окружения.
+def test_backend_images_are_declared_in_environment_template() -> None:
+    """Образы API и миграций объявлены в шаблоне окружения бэкенда.
 
     Переменная, которой нет в `.env.example`, не существует для того, кто
     заполняет `.env` руками: он не знает, что её нужно задать.
     """
     declared = ENV_EXAMPLE.read_text(encoding="utf-8")
-    for variable in ("SPEECH_MS_IMAGE", "SPEECH_WORKER_IMAGE", "SPEECH_FRONTEND_IMAGE"):
+    for variable in ("SPEECH_MS_IMAGE", "SPEECH_MIGRATIONS_IMAGE"):
         assert re.search(rf"^{variable}=", declared, re.M), f"{variable} нет в .env.example"
 
 

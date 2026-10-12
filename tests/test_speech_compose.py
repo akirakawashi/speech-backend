@@ -1,332 +1,133 @@
-"""Форма `docker-compose.yml` для конвейера речи.
+"""Контракт локального запуска API и миграций из docker-compose.yml.
 
-Проверяется не то, что файл разбирается, а решения, которые в нём записаны и
-которые легко потерять при следующей правке: какой профиль поднимает воркеров,
-где ключ Dify обязателен, а где требовать его значило бы запретить запуск.
-
-Дешевле теста здесь нет ничего: ошибка в профиле обнаруживается на узле при
-выкатке, а ошибка в обязательности переменной — ночью, вечным перезапуском.
+Проверяем границы запуска, отдельные учётные записи базы и передачу настроек:
+обычный up поднимает API, а миграции выполняются явной командой.
 """
 
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Any
 
 import pytest
 import yaml
 
-COMPOSE: dict[str, Any] = yaml.safe_load(
-    pathlib.Path("docker-compose.yml").read_text(encoding="utf-8")
-)
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+COMPOSE: dict[str, Any] = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
 SERVICES: dict[str, Any] = COMPOSE["services"]
 
-#: Постоянные службы конвейера: поднимаются вместе со всем остальным.
-WORKERS = ("speech-worker-daily", "speech-worker-backfill")
 
-#: Задачи: отработали и завершились, расписание снаружи.
-TASKS = ("speech-daily-ingest", "speech-prune", "speech-backfill")
-
-#: Оценка по скрипту — тоже задача, но окружение у неё своё, а не общее с
-#: воркерами: проверки про ключи конвейера к ней не относятся.
-EVALUATE = "speech-evaluate"
+def test_backend_compose_owns_only_api_and_migrations() -> None:
+    """Бэкенд не запускает соседние приложения и не создаёт хранилища записей."""
+    assert set(SERVICES) == {"speech-ms", "migrate-speech"}
+    assert "volumes" not in COMPOSE
 
 
-@pytest.mark.parametrize("service", WORKERS)
-def test_the_workers_start_with_the_rest_of_the_stack(service: str) -> None:
-    """`up -d` поднимает воркеров (SP-307).
-
-    До появления обработчиков они стояли в своём профиле, и это было верно:
-    воркер с неполным реестром отказывался стартовать, а `restart:
-    unless-stopped` превращал отказ в бесконечный перезапуск.
-    """
-    assert SERVICES[service]["profiles"] == ["managed-runtime"]
-    assert SERVICES[service]["restart"] == "unless-stopped"
+def test_default_start_runs_only_api() -> None:
+    """Обычный up запускает API; миграции требуют отдельного профиля."""
+    default = {name for name, spec in SERVICES.items() if not spec.get("profiles")}
+    assert default == {"speech-ms"}
+    assert SERVICES["speech-ms"]["restart"] == "unless-stopped"
+    assert SERVICES["migrate-speech"]["profiles"] == ["operations"]
 
 
-@pytest.mark.parametrize("service", (*TASKS, EVALUATE))
-def test_a_task_is_not_raised_by_up(service: str) -> None:
-    """Задача с расписанием снаружи не должна подниматься как служба.
-
-    Поднявшись, суточный прогон отработал бы за вчера и завершился, а `restart`
-    у него нет — контейнер остался бы в `Exited`, и мониторинг увидел бы
-    остановленную службу там, где всё в порядке.
-    """
-    assert SERVICES[service]["profiles"] == ["operations"]
-    assert "restart" not in SERVICES[service]
+def test_migrations_are_an_explicit_one_time_command() -> None:
+    """Команда применяет дерево речи один раз и не перезапускается вместе с API."""
+    spec = SERVICES["migrate-speech"]
+    assert spec["command"] == ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+    assert "restart" not in spec
+    assert "depends_on" not in SERVICES["speech-ms"]
 
 
-@pytest.mark.parametrize("service", WORKERS)
-def test_the_workers_refuse_to_start_without_the_dify_key(service: str) -> None:
-    """`up` обязан остановиться сразу, а не поднять перезапускающийся контейнер.
-
-    Воркер берёт этап анализа, а клиент анализа без ключа не собирается — и
-    правильно не собирается: воркер, тихо решивший, что анализировать нечем,
-    оставил бы суточный пакет без тем, ничего не сказав. Два контейнера, вечно
-    падающих в штатном профиле, обесценивают журнал: настоящий отказ в нём уже
-    не заметить.
-    """
-    key = SERVICES[service]["environment"]["SPEECH_DIFY_APP_KEY"]
-
-    assert ":?" in key, "ключ не объявлен обязательным — отказ станет перезапуском"
-    assert "SPEECH_DIFY_APP_KEY" in key
-
-
-@pytest.mark.parametrize("service", TASKS)
-def test_the_tasks_do_not_demand_a_key_they_never_use(service: str) -> None:
-    """Ни приём, ни удаление по сроку, ни перечисление дат к Dify не ходят.
-
-    Требовать у них ключ значило бы запретить их запуск в контуре, где
-    приложения Dify ещё нет, — а разбирать историю и удалять записи по сроку он
-    там не мешает.
-    """
-    key = SERVICES[service]["environment"]["SPEECH_DIFY_APP_KEY"]
-
-    assert ":?" not in key, f"{service} требует ключ, которым не пользуется"
-
-
-@pytest.mark.parametrize("service", (*WORKERS, "speech-daily-ingest", "speech-backfill"))
-def test_everything_that_enumerates_calls_sees_the_export_directory(service: str) -> None:
-    """`SPEECH_NCC_EXPORT_DIR` без монтирования называет путь, которого нет.
-
-    Переменная передавалась бы, каталог — нет, и сбор из локальной выгрузки не
-    работал бы ни при какой настройке.
-    """
-    mounts = SERVICES[service]["volumes"]
-
-    assert any("/var/lib/speech/export" in str(mount) for mount in mounts)
-    assert any(str(mount).endswith(":ro") for mount in mounts), (
-        "каталог с разговорами реальных клиентов смонтирован на запись"
+def test_api_and_migrations_require_separate_database_credentials() -> None:
+    """Настройка миграций не подставляет учётную запись API и не получает его секреты."""
+    runtime_env = SERVICES["speech-ms"]["environment"]
+    migration_env = SERVICES["migrate-speech"]["environment"]
+    assert "AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL:?" in runtime_env["SPEECH_MS_DATABASE_URL"]
+    assert (
+        "AICISTENT_DOCKER_SPEECH_MS_MIGRATE_DATABASE_URL:?"
+        in migration_env["SPEECH_MS_DATABASE_URL"]
     )
+    assert set(migration_env) == {"SPEECH_MS_DATABASE_URL"}
 
 
-@pytest.mark.parametrize("service", (*WORKERS, "speech-daily-ingest", "speech-backfill"))
-def test_the_reporting_view_source_can_be_configured_in_the_container(service: str) -> None:
-    """`env_file` у служб конвейера нет: чего нет в `environment`, того нет вовсе.
-
-    Источник `reporting_view` без адреса, пароля и представлений отказывает на
-    старте прогона — но только если переменные вообще доходят до контейнера.
-    Не дойди они, отказ был бы тем же, а исправить его правкой `.env` было бы
-    нельзя.
-    """
-    env = SERVICES[service]["environment"]
-
-    for name in (
-        "SPEECH_NCC_REPORTING_DATABASE_URL",
-        "SPEECH_NCC_REPORTING_DB_PASSWORD",
-        "SPEECH_NCC_REPORTING_VIEWS",
-        "SPEECH_NCC_REPORTING_TIMEZONE",
-        "SPEECH_NCC_MIN_TALK_SECONDS",
-    ):
-        assert name in env, name
-    assert ":?" not in env["SPEECH_NCC_REPORTING_DB_PASSWORD"], (
-        "другим источникам база не нужна — обязательность запретила бы их запуск"
-    )
-
-
-def test_the_prune_task_checks_before_it_deletes() -> None:
-    """Единственная необратимая задача проекта не удаляет от опечатки.
-
-    `docker compose run speech-prune`, набранное по памяти, должно показать, что
-    удалило бы, а не удалить.
-    """
-    assert "--apply" not in SERVICES["speech-prune"]["command"]
-
-
-def test_the_evaluation_task_counts_before_it_calls_the_model() -> None:
-    """Тот же довод: запуск по памяти показывает, сколько звонков ждут, а модель не зовёт.
-
-    Порция при этом задана: расписание берёт сотню, а не весь архив, и не
-    возвращается к звонкам, чья оценка уже не удалась.
-    """
-    command = SERVICES[EVALUATE]["command"]
-
-    assert "--apply" not in command
-    assert "--all" in command and "--skip-failed" in command
-    assert command[command.index("--limit") + 1] == "100"
-
-
-def test_the_evaluation_task_gets_the_model_and_nothing_else() -> None:
-    """Без строки в `environment` настройки модели до контейнера не доходят вовсе.
-
-    Обратная сторона — задаче не нужны ключи конвейера: она читает
-    текст из базы и зовёт модель. Унаследуй она общее окружение
-    воркеров, ключ хранилища записей и учётки источников доставались бы
-    процессу, которому они ни к чему.
-    """
-    env = SERVICES[EVALUATE]["environment"]
-
-    for name in (
-        "SPEECH_MS_DATABASE_URL",
-        "SPEECH_QUALITY_LLM_BASE_URL",
-        "SPEECH_QUALITY_LLM_API_KEY",
-        "SPEECH_QUALITY_LLM_MODEL",
-    ):
-        assert name in env, name
-    assert ":?" not in env["SPEECH_QUALITY_LLM_BASE_URL"], (
-        "проверка без --apply модель не зовёт — обязательность запретила бы и её"
-    )
-    foreign = [
-        name
-        for name in env
-        if name.startswith(("SPEECH_STORAGE_", "SPEECH_TELPHIN_", "SPEECH_NCC_", "SPEECH_DIFY_"))
-        or name.startswith("SPEECH_WHISPER_")
-    ]
-    assert foreign == [], foreign
-
-
-def test_the_evaluation_task_declares_how_many_connections_it_may_hold() -> None:
-    """По расписанию задача работает почти всё время, и её пул — часть бюджета кластера.
-
-    Умолчание (пять и три сверху) рассчитано на службу с параллельными
-    запросами. Оценка идёт по одному звонку, и оставить ей восемь соединений
-    значило бы занять их в общем с Dify кластере без нужды.
-    """
-    env = SERVICES[EVALUATE]["environment"]
-
-    assert (env["DB_POOL_SIZE"], env["DB_MAX_OVERFLOW"]) == ("1", "1")
-
-
-def test_the_backfill_task_reports_before_it_walks() -> None:
-    """Тот же довод: команда по умолчанию не должна начинать обход шестидесяти суток."""
-    assert SERVICES["speech-backfill"]["command"][-1] == "status"
-
-
-@pytest.mark.parametrize("service", (*WORKERS, *TASKS, EVALUATE))
-def test_the_pipeline_runs_unprivileged_and_read_only(service: str) -> None:
-    """Конвейер работает с чужой речью: лишние права ему не нужны ни на шаг."""
+@pytest.mark.parametrize("service", ("speech-ms", "migrate-speech"))
+def test_containers_receive_only_explicit_process_settings(service: str) -> None:
+    """Настройки Whisper, источников и LLM не передаются процессам API и миграций."""
     spec = SERVICES[service]
+    assert "env_file" not in spec
+    worker_prefixes = (
+        "SPEECH_WHISPER_",
+        "SPEECH_DIFY_",
+        "SPEECH_NCC_",
+        "SPEECH_TELPHIN_",
+        "SPEECH_QUALITY_LLM_",
+        "TRANSCRIPTION_",
+    )
+    assert not any(name.startswith(worker_prefixes) for name in spec["environment"])
 
+
+@pytest.mark.parametrize("service", ("speech-ms", "migrate-speech"))
+def test_containers_keep_read_only_filesystems_and_drop_privileges(service: str) -> None:
+    """Процессы пишут временные файлы в tmpfs и не получают дополнительные права."""
+    spec = SERVICES[service]
     assert spec["read_only"] is True
     assert spec["cap_drop"] == ["ALL"]
     assert "no-new-privileges:true" in spec["security_opt"]
+    assert any(str(mount).startswith("/tmp") for mount in spec["tmpfs"])
 
 
-def test_the_workers_get_room_for_audio_in_tmpfs() -> None:
-    """Сюда пишется скачанная запись, её даунмикс и каналы.
-
-    Умолчания `/tmp` не хватит на часовой разговор, и этап приёма упал бы на
-    записи, которая до хранилища так и не доехала.
-    """
-    for service in WORKERS:
-        assert any("size=" in str(entry) for entry in SERVICES[service]["tmpfs"])
+def test_api_has_bounded_space_for_temporary_reports() -> None:
+    """Файлы Excel не растут без ограничения в памяти Docker-хоста."""
+    assert any("size=" in str(mount) for mount in SERVICES["speech-ms"]["tmpfs"])
 
 
-@pytest.mark.parametrize("service", WORKERS)
-def test_a_worker_is_given_time_to_finish_before_it_is_killed(service: str) -> None:
-    """`request_stop` без срока не значит ничего.
-
-    Воркер обрабатывает `SIGTERM` и доводит текущее задание — так написано и в
-    коде, и в его собственной пояснительной строке. При умолчании Docker в
-    десять секунд обработчик успевал поставить флаг, и на этом всё: расшифровка,
-    за которую уже заплачено временем GPU, выбрасывалась на каждой выкатке.
-
-    Проверяется наличие и порядок величины, а не точное число: смысл в том, что
-    срок задан осознанно и измеряется минутами, а не в том, что он равен ста
-    восьмидесяти секундам.
-    """
-    grace = SERVICES[service].get("stop_grace_period")
-
-    assert grace is not None, "без этого ключа Docker убьёт воркер через десять секунд"
-    assert grace.endswith("s")
-    assert 60 <= int(grace[:-1]) <= 900, (
-        "меньше минуты не хватит даже среднему звонку, больше аренды — бессмысленно: "
-        "задание всё равно вернётся в очередь"
-    )
-
-
-def test_the_service_is_told_how_to_flag_its_cookies() -> None:
-    """`SESSION_COOKIE_SECURE` обязана доезжать до `speech-ms` объявлением.
-
-    `env_file: .env` у `speech-ms` нет, поэтому без строки в `environment`
-    оператор, поставивший `SESSION_COOKIE_SECURE=always`, получал бы умолчание
-    `auto`: переменная объявлена, а до процесса не доезжает.
-
-    Здесь же держится и вторая половина защиты: пока переменная не доезжает,
-    проверка на старте в `validate_speech_runtime` не видит `never` вовсе и
-    ничего не запрещает.
-    """
-    service = SERVICES["speech-ms"]
-
-    assert "env_file" not in service, (
-        "если он появится, эту строку можно убрать — но не раньше, и осознанно"
-    )
-    assert service["environment"]["SESSION_COOKIE_SECURE"] == "${SESSION_COOKIE_SECURE:-auto}"
-
-
-def test_only_the_browser_facing_service_needs_the_cookie_flag() -> None:
-    """Список сервисов, которым флаг нужен, держится тем, кто ставит куки.
-
-    Куки браузеру в этом файле ставит одна служба — `speech-ms`
-    (`app/speech_service/*`). Воркеры и задачи исполняют тот же код, но HTTP не
-    обслуживают, и объявлять им флаг значило бы утверждать, что он на что-то
-    влияет.
-    """
-    got = {
-        name
-        for name, spec in SERVICES.items()
-        if "SESSION_COOKIE_SECURE" in (spec.get("environment") or {})
-    }
-
-    assert got == {"speech-ms"}
-
-
-# --------------------------------------------------------------------------- #
-# Интерфейс
-# --------------------------------------------------------------------------- #
-
-
-def test_the_interface_is_declared_at_all() -> None:
-    """Образ фронта собирался, а запускать его было негде.
-
-    Служба появилась только 2026-09-14: до этого `build-and-save-images.sh`
-    клал образ в архив, а ни одного места, где он объявлен к запуску, не
-    существовало. Собранный и никуда не подключённый образ — это выкатка,
-    которая молча не приезжает.
-    """
-    assert "speech-frontend" in SERVICES
-
-
-def test_the_interface_is_not_published_to_the_world() -> None:
-    """На петле, как и всё остальное: наружу отдаёт прокси, а не контейнер."""
-    ports = SERVICES["speech-frontend"]["ports"]
-
+def test_api_is_published_on_loopback_only() -> None:
+    """Локальный порт API доступен хосту; публикация наружу принадлежит прокси."""
+    ports = SERVICES["speech-ms"]["ports"]
     assert len(ports) == 1
-    assert ports[0].startswith("127.0.0.1:"), ports[0]
-    assert ports[0].endswith(":3000"), "внутри образ слушает 3000"
+    assert ports[0].startswith("127.0.0.1:")
+    assert ports[0].endswith(":8096")
 
 
-def test_the_interface_reads_its_addresses_at_runtime() -> None:
-    """Ради этого фронт и собирается без аргументов сборки.
+def test_readiness_checks_database_schema() -> None:
+    """Ожидание готовности проверяет /ready вместо одной живости HTTP-процесса."""
+    spec = SERVICES["speech-ms"]
+    assert any("/ready" in str(part) for part in spec["healthcheck"]["test"])
 
-    Все настройки приходят окружением контейнера и отдаются через
-    `/config.json`. Если хоть одна переедет в аргументы сборки, образ снова
-    станет пригодным только для того стенда, под который собран.
-    """
-    env = SERVICES["speech-frontend"]["environment"]
 
+def test_api_receives_authentication_storage_and_browser_settings() -> None:
+    """Локальный env доходит до контейнера для входа, cookies, CORS и воспроизведения."""
+    environment = SERVICES["speech-ms"]["environment"]
     for name in (
         "SPEECH_AUTH_MODE",
-        "SPEECH_KEYCLOAK_URL",
-        "SPEECH_KEYCLOAK_REALM",
-        "SPEECH_KEYCLOAK_CLIENT_ID",
-        "SPEECH_API_URL",
-        # Адрес `speech-ms` для проброса `/api/*` самим фронтом (2026-09-15).
-        "SPEECH_API_PROXY_TARGET",
+        "SPEECH_KEYCLOAK_CLIENT_SECRET",
+        "SPEECH_PUBLIC_BASE_URL",
+        "BACKEND_CORS_ORIGINS",
+        "SPEECH_DISPLAY_TIMEZONE",
+        "SPEECH_STORAGE_BASE_URL",
+        "SPEECH_STORAGE_ACCESS_KEY_ID",
+        "SPEECH_STORAGE_SECRET_KEY",
+        "SPEECH_METRICS_KEY",
     ):
-        assert name in env, name
-    assert "build" not in SERVICES["speech-frontend"], (
-        "исходники фронта в соседнем репозитории; сборка объявлена там же"
-    )
+        assert name in environment, name
+    assert environment["SESSION_COOKIE_SECURE"] == "${SESSION_COOKIE_SECURE:-auto}"
+    assert environment["SPEECH_STORAGE_BASE_URL"] == "${SPEECH_STORAGE_BASE_URL:-}"
 
 
-def test_the_interface_checks_the_one_thing_it_must_do_itself() -> None:
-    """Проверка живости бьёт в `/config.json`, а не в корень.
+def test_api_can_reach_external_services_with_private_database_network() -> None:
+    """Оба процесса видят PostgreSQL; API получает сетевой выход к MinIO и Keycloak."""
+    assert COMPOSE["networks"]["data"]["external"] is True
+    assert "SPEECH_DOCKER_NETWORK" in COMPOSE["networks"]["data"]["name"]
+    assert set(SERVICES["speech-ms"]["networks"]) == {"default", "data"}
+    assert SERVICES["migrate-speech"]["networks"] == ["data"]
+    assert not COMPOSE["networks"].get("default", {}).get("internal", False)
 
-    Корень отдаёт страницу и при сломанном обработчике настроек — то есть
-    здоровым будет выглядеть фронт, который не может сообщить браузеру ни
-    адреса API, ни режима входа.
-    """
-    test = SERVICES["speech-frontend"]["healthcheck"]["test"]
 
-    assert any("config.json" in str(part) for part in test)
+def test_compose_configuration_is_documented_in_environment_template() -> None:
+    """Каждая пользовательская переменная Compose объявлена в шаблоне окружения."""
+    source = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    used = set(re.findall(r"\$\{([A-Z][A-Z0-9_]*)", source))
+    declared = set(re.findall(r"^([A-Z][A-Z0-9_]*)=", (ROOT / ".env.example").read_text(), re.M))
+    assert used - {"GIT_COMMIT", "BUILD_TIME"} <= declared

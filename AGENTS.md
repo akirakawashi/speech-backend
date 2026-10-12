@@ -15,6 +15,8 @@
 
 - Используем `src/presentation`, `src/application`, `src/infrastructure`,
   `src/domain`, `src/setting` и `src/di`.
+- Пакет `app` удалён. HTTP запускаем фабрикой `src.di.http:create_app --factory`,
+  CLI — модулями `src.presentation.cli.*`. Старые обёртки не восстанавливаем.
 - Presentation преобразует HTTP-ввод в DTO и вызывает application. Application
   применяет domain и обращается к внешним операциям через порты.
 - Infrastructure реализует порты, DI собирает зависимости. Domain независим
@@ -29,6 +31,11 @@
 
 ## Проверки и документация
 
+- Окружением и зависимостями управляет UV: `pyproject.toml` и `uv.lock`.
+  Установка — `uv sync --locked`, команды — `uv run --locked`.
+  Сборщик — `uv_build`; dev-инструменты находятся в группе `dev`.
+  requirements-файлы и setuptools не добавляем. Подробнее:
+  [окружение](docs/development.md#окружение).
 - После изменения Python-кода запускаем Ruff, проверку форматирования, mypy
   и подходящие pytest-тесты в окружении проекта.
 - Не ослабляем проверки и не подавляем ошибки ради успешного прогона.
@@ -41,3 +48,7 @@
 Разделение проектов и состояние перехода: [границы сервисов](docs/service-boundaries.md).
 Докстринги, окружение и проверки: [разработка](docs/development.md).
 Базы, обезличивание и совместимость: [контекст проекта](docs/project-context.md).
+Состав Compose, сеть PostgreSQL и отдельный запуск миграций:
+[развёртывание](docs/deployment.md).
+Точки входа и запуск после удаления `app`:
+[архитектура](docs/architecture.md#точки-запуска-и-совместимость).

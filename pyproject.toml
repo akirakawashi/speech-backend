@@ -1,100 +1,55 @@
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "aicistent-speech-backend"
+name = "speech-backend"
 version = "0.1.0"
-description = "Speech Analytics: call recording pipeline and the speech-ms API."
+description = "Speech analytics API and database migrations."
+readme = "README.md"
 requires-python = ">=3.12"
-# The base is what *every* deployable needs, and nothing else. Each deployable
-# adds its own set below, so an image carries the dependencies of the process it
-# runs rather than of the whole repository.
-#
-# Two entries below are not imported by name anywhere, and are listed with the
-# reason instead:
-#   * uvicorn -- the process the `speech-ms` container starts;
-#   * asyncpg -- resolved by SQLAlchemy from the `postgresql+asyncpg://` URL.
 dependencies = [
   "fastapi>=0.141.1,<0.142",
+  "pydantic>=2.13.5,<3",
   "pydantic-settings>=2.14.1,<3",
   "typing-extensions>=4.12.2,<5",
   "uvicorn[standard]>=0.49.0,<0.50",
-]
-
-[project.optional-dependencies]
-# One extra per deployable. `pip install .[speech-ms]` builds the speech-ms image.
-#
-# Speech Analytics: HTTP-поверхность. Токены Keycloak проверяет сам сервис,
-# отсюда python-jose; аудио отдаётся потоком из MinIO, отсюда httpx.
-speech-ms = [
-  # Отчёт по звонкам в Excel (SP-604).
   "openpyxl>=3.1.5,<4",
   "httpx>=0.28.1,<0.29",
   "python-jose[cryptography]>=3.5.0,<4",
   "sqlalchemy[asyncio]>=2.0.50,<2.1",
   "asyncpg>=0.31.0,<0.32",
-  # База часовых поясов пакетом, а не из системы.
-  #
-  # `ZoneInfo("Europe/Moscow")` берёт её у ОС, и на машине без системной базы
-  # (обычная Windows) падает с `ZoneInfoNotFoundError`. Это не декорация: по
-  # поясу колл-центра считается, какие сутки забирает вечерний прогон и в какой
-  # день попадает звонок. Поведение, зависящее от того, где запущен процесс, —
-  # ровно то, чего в приёме быть не должно.
   "tzdata>=2026.1",
 ]
-# Speech Analytics: воркеры и поллер. Тот же код, но без веб-слоя. Отчётную базу
-# NCC читает тот же asyncpg, что и нашу: две выборки в сутки не повод тянуть
-# второй драйвер. `ffmpeg` ставится в образ пакетом, а не сюда: это бинарь, а не
-# зависимость Python.
-speech-worker = [
-  "httpx>=0.28.1,<0.29",
-  "sqlalchemy[asyncio]>=2.0.50,<2.1",
-  "asyncpg>=0.31.0,<0.32",
-  # База часовых поясов пакетом, а не из системы — см. `speech-ms` выше.
-  "tzdata>=2026.1",
-]
-# The migration container runs the Alembic CLI and no service code.
-migrations = [
-  "alembic>=1.18.4,<2",
-  "sqlalchemy[asyncio]>=2.0.50,<2.1",
-  "asyncpg>=0.31.0,<0.32",
-]
-# Everything at once: what tests, mypy and a developer checkout need.
-all = [
-  "aicistent-speech-backend[migrations]",
-  "aicistent-speech-backend[speech-ms]",
-  "aicistent-speech-backend[speech-worker]",
-]
+
+[dependency-groups]
+migrations = ["alembic>=1.18.4,<2"]
 dev = [
+  { include-group = "migrations" },
   "mypy>=2.3.0,<3",
   "pytest>=9.1.1,<10",
   "pytest-asyncio>=1.4.0,<2",
   "ruff>=0.16.0,<0.17",
+  "PyYAML>=6,<7",
   "types-openpyxl>=3.1.5,<4",
   "types-python-jose>=3.5,<4",
   "types-PyYAML>=6,<7",
 ]
 
-[tool.setuptools.packages.find]
-include = ["src*", "app*"]
-exclude = ["alembic*", "tests*"]
+[build-system]
+requires = ["uv_build>=0.11.18,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.11.18"
+
+[tool.uv.build-backend]
+module-name = "src"
+module-root = ""
+source-include = ["alembic/**", "alembic.ini", "openapi.speech.json"]
 
 [tool.pytest.ini_options]
-# Граница снизу — не формальность. Прогон чужим `pytest` из глобального
-# Python вместо `.venv` даёт `ModuleNotFoundError` на сборе тестов — выглядит как
-# сломанный код, а на деле это другое окружение. С границей pytest отказывается
-# сразу и называет причину.
 minversion = "9.0"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 pythonpath = ["."]
-# Some Windows dev machines end up with a permission-locked
-# %TEMP%\pytest-of-<user> (stale ACL from a prior process). Route pytest's
-# tmp_path/tmp_path_factory root and cache into the repo instead of relying on
-# ambient OS temp state, so `tmp_path` fixtures and the cache plugin don't
-# depend on machine-specific temp-dir health.
 addopts = "--basetemp=.pytest-tmp -p no:cacheprovider"
 
 [tool.ruff]
@@ -104,23 +59,10 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
-# В монорепозитории рядом лежал каталог `alembic/` (миграции основного
-# приложения), и линтер считал импорт `alembic` своим кодом. Миграции речи
-# написаны под этот порядок импортов. Объявлено явно, чтобы не переставлять
-# импорты в каждой миграции и не расходиться с исходником.
 [tool.ruff.lint.isort]
 known-first-party = ["alembic"]
 combine-as-imports = true
 
-# B008 forbids a function call in an argument default, because the call runs
-# once at import and every caller then shares one mutable object. FastAPI's
-# dependency injection is built on exactly that syntax, and there the call is
-# not evaluated as a default at all -- FastAPI reads it off the signature and
-# resolves it per request.
-#
-# This is not a suppression: the rule stays on and still catches a real
-# `def f(x=[])` or `def f(t=datetime.now())`. It is told which calls FastAPI
-# treats specially, which is what `extend-immutable-calls` is for.
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = [
   "fastapi.Depends",
@@ -153,6 +95,3 @@ disable_error_code = [
   "call-overload",
   "unused-ignore",
 ]
-
-[tool.setuptools.package-data]
-"src.infrastructure.data" = ["*.json"]

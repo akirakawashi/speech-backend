@@ -44,25 +44,41 @@ Raises:
 
 ## Окружение
 
-Все команды ниже выполняются из `speech-backend`. Используем только её
-собственное окружение `.venv`. При установке явно выбираем интерпретатор:
+Все команды ниже выполняются из `speech-backend`. UV 0.11.18+ управляет
+собственным окружением `.venv`; Python 3.12 выбран в `.python-version`.
+Настройки проекта пересозданы через `uv init --bare --package --build-backend uv`.
 
 ```bash
-uv pip install --python .venv/bin/python -e '.[all,dev]'
+uv sync --locked
 ```
 
-Так установка не зависит от того, какое окружение активно в терминале.
-Проверки и версии инструментов задаются в [pyproject.toml](../pyproject.toml).
+UV сам создаёт окружение и устанавливает проект. `pyproject.toml` описывает
+зависимости и проверки, `uv.lock` фиксирует версии и хеши пакетов. Отдельных
+requirements-файлов нет. Изменения зависимостей выполняем через `uv add`,
+`uv remove` и `uv lock`; `uv lock --check` проверяет согласованность.
+
+Используем сборщик `uv_build`. Пакет называется `speech-backend`; прежнее
+имя `aicistent-speech-backend` и конфигурация setuptools удалены.
+Группа `migrations` содержит Alembic, `dev` включает её и инструменты проверок.
+Обычный `uv sync --locked` устанавливает также `dev`. Для исполнения без
+инструментов разработки используется `uv sync --locked --no-dev`; образ
+миграций дополнительно выбирает `--group migrations`.
+
+`uv build` создаёт wheel и исходный архив в `dist/`. В пакете сохраняются
+`src` и JSON-справочники; миграции входят в исходный
+архив и отдельно копируются в Docker. Сборка и установка не создают
+`*.egg-info` в исходниках. Генерируемые `.venv`, `dist` и кэши в Git не входят.
+Исходники, миграции и тесты при смене инструментов не переписывались.
 
 ## Проверки
 
 После изменения Python-кода запускаем:
 
 ```bash
-.venv/bin/python -m ruff check .
-.venv/bin/python -m ruff format --check .
-.venv/bin/python -m mypy .
-.venv/bin/python -m pytest -q
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy .
+uv run --locked pytest -q
 ```
 
 Вся Python-структура приведена к формату Ruff; проверка форматирования охватывает проект.

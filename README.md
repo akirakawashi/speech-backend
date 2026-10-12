@@ -8,8 +8,8 @@ Whisper, разбор разговоров, оценка по скрипту п�
 подробности архитектуры и неочевидные решения — в [docs/](docs/README.md).
 
 12.10.2026 сюда скопирована текущая реализация из `whisper-backend`.
-Код воркера пока входит в эту копию; его выделение в `speech-worker` — следующий
-этап. Целевые границы описаны в [разделении проектов](docs/service-boundaries.md).
+Воркер выделен в самостоятельный `speech-worker`; прежние команды в этой копии
+сохранены. Целевые границы описаны в [разделении проектов](docs/service-boundaries.md).
 Исходная папка сохранена. У проекта собственное окружение `.venv`; рабочие
 секреты и окружение исходной папки не переносились.
 
@@ -23,7 +23,6 @@ Whisper, разбор разговоров, оценка по скрипту п�
 | `src/infrastructure/` | PostgreSQL, очередь, Whisper, источники, хранилище, ffmpeg и файлы отчётов |
 | `src/setting/` | Pydantic Settings и проверка конфигурации |
 | `src/di/` | Сборка сценариев, адаптеров и ресурсов процессов |
-| `app/` | Совместимые точки старого запуска; второй реализации здесь нет |
 | `alembic/` | Миграции отдельной базы речи |
 | `tests/` | Правила, сценарии, HTTP, адаптеры, транзакции и границы слоёв |
 
@@ -34,12 +33,11 @@ Whisper, разбор разговоров, оценка по скрипту п�
 ## Запуск
 
 ```bash
-python3.12 -m venv .venv
-uv pip install --python .venv/bin/python -e '.[all,dev]'
+uv sync --locked
 cp .env.example .env
 # Заполнить адрес отдельной базы и необходимых сервисов.
-.venv/bin/alembic -c alembic.ini upgrade head
-.venv/bin/uvicorn src.di.http:create_app --factory --port 8096
+uv run --locked alembic -c alembic.ini upgrade head
+uv run --locked uvicorn src.di.http:create_app --factory --port 8096
 ```
 
 Все переменные описаны в [.env.example](.env.example). Пустой
@@ -48,7 +46,7 @@ cp .env.example .env
 Воркеру нужны ffmpeg и зависимости выбранных этапов: источник и хранилище для
 приёма, Whisper для распознавания, приложение Dify для разбора.
 
-| Команда после `.venv/bin/python -m` | Назначение |
+| Команда после `uv run --locked python -m` | Назначение |
 |---|---|
 | `src.presentation.cli.worker --lanes daily` | Выполнить этапы конвейера |
 | `src.presentation.cli.daily_ingest --yesterday` | Принять звонки за день |
@@ -67,18 +65,24 @@ cp .env.example .env
 анализ и очистка по умолчанию показывают план; `--apply` выполняет изменения.
 Служебные HTTP-ручки: `/health`, `/ready`, `/version`, `/metrics`.
 
-Старые команды `app.speech.*` и ASGI-вход `app.speech_service.main:app`
-сохранены для внешнего `local-dev/run.sh`; новая разработка использует `src/`.
+Все точки запуска находятся в `src/`. Для локальных скриптов этой папки:
+`SPEECH_BACKEND=speech-backend ../local-dev/run.sh api`.
+Пакет `app` удалён после перевода потребителей на новые точки входа;
+подробности — в [архитектуре](docs/architecture.md#точки-запуска-и-совместимость).
 
 В Docker:
 
 ```bash
+docker compose --profile operations build
 docker compose --profile operations run --rm migrate-speech
-docker compose --profile managed-runtime up -d
+docker compose up -d --wait
 ```
 
 Образ API использует фабрику `src.di.http:create_app --factory`.
-Postgres и внешние модели в compose не поднимаются: они подключаются отдельно.
+Compose запускает только API и явную команду миграций. PostgreSQL и MinIO
+подключаются отдельно; обработка выполняется проектом `speech-worker`.
+Настройки сети, отдельные роли базы и порядок запуска описаны в
+[развёртывании](docs/deployment.md).
 
 ## База и проверки
 
@@ -87,12 +91,12 @@ Postgres и внешние модели в compose не поднимаются: 
 
 ```bash
 SPEECH_MS_DATABASE_URL=postgresql+asyncpg://…/speech_whisper_test \
-  .venv/bin/alembic -c alembic.ini upgrade head
+  uv run --locked alembic -c alembic.ini upgrade head
 export SPEECH_POSTGRES_TEST_URL=postgresql+asyncpg://…/speech_whisper_test
-.venv/bin/python -m ruff check .
-.venv/bin/python -m ruff format --check .
-.venv/bin/python -m mypy .
-SPEECH_REQUIRE_LIVE_PROOFS=1 .venv/bin/python -m pytest -q -rs
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy .
+SPEECH_REQUIRE_LIVE_PROOFS=1 uv run --locked pytest -q -rs
 ```
 
 Тесты PostgreSQL очищают таблицы: рабочая база для них не подходит.
@@ -112,7 +116,7 @@ SPEECH_REQUIRE_LIVE_PROOFS=1 .venv/bin/python -m pytest -q -rs
 изменении API сначала выбирается новая версия, затем обновляется снимок:
 
 ```bash
-.venv/bin/python scripts/update_contract_snapshots.py
+uv run --locked python scripts/update_contract_snapshots.py
 ```
 
 Старые снимки сохраняются. `openapi.speech.json` используется фронтендом;
@@ -140,4 +144,6 @@ SPEECH_REQUIRE_LIVE_PROOFS=1 .venv/bin/python -m pytest -q -rs
 
 11.10.2026 реализация в `whisper-backend` разделена на шесть слоёв. Зависимости сценариев заменяются
 через порты и DI; дубли исходников в `app/` удалены, старые точки запуска
-оставлены обёртками. С 12.10.2026 работа над бэкендом ведётся в `speech-backend`.
+первоначально оставлены обёртками. С 12.10.2026 работа над бэкендом ведётся
+в `speech-backend`. В этой папке переходные обёртки `app/` удалены,
+локальные скрипты используют CLI и фабрику HTTP из `src/`.
