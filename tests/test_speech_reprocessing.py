@@ -328,6 +328,15 @@ async def test_actual_result_sql_invalidates_only_derived_outputs(
     monkeypatch.setattr(PostgresJobQueue, "reprocess", reset)
     monkeypatch.setattr(reprocessing, "read_setting", read)
 
+    before = {
+        table: connection.execute(text(f"SELECT * FROM {table}")).mappings().all()
+        for table in (
+            "speech_calls",
+            "speech_transcripts",
+            "speech_transcript_segments",
+            "speech_call_evaluations",
+        )
+    }
     assert await reprocessing.reprocess(session, CALL_ID, kind) == JOB_ID
 
     read.assert_awaited_once_with(session, "max_attempts")
@@ -338,6 +347,10 @@ async def test_actual_result_sql_invalidates_only_derived_outputs(
     assert job.max_attempts == ATTEMPTS[kind.value]
     assert job.lane is JobLane.DAILY
     assert job.lease_seconds == (900 if kind is JobKind.TRANSCRIBE else 300)
+    if kind is JobKind.EVALUATE:
+        for table, rows in before.items():
+            assert connection.execute(text(f"SELECT * FROM {table}")).mappings().all() == rows
+        return
     call = connection.execute(text("SELECT * FROM speech_calls")).mappings().one()
     assert (call["processing_status"], call["completed_at"], call["analysis_status"]) == (
         "queued",
@@ -627,7 +640,7 @@ async def test_postgres_completed_pipeline_replays_to_completion(pg, kind):
             "last_error_at",
         )
     )
-    assert state["speech_calls"][0]["completed_at"] is None
+    assert (state["speech_calls"][0]["completed_at"] is None) == (kind is not JobKind.EVALUATE)
     assert len(state["speech_audit_events"]) == 1
 
     seen: list[JobKind] = []
@@ -641,12 +654,19 @@ async def test_postgres_completed_pipeline_replays_to_completion(pg, kind):
         lanes=[JobLane.DAILY],
         worker_id="replay-worker",
     )
-    for _stage in list(JobKind)[stage_index:]:
+    expected = []
+    current = kind
+    while current is not None:
+        expected.append(current)
+        current = SPEECH_NEXT_JOB_KIND[current]
+    for _stage in expected:
         assert await worker.run_once()
     assert not await worker.run_once()
-    assert seen == list(JobKind)[stage_index:]
+    assert seen == expected
     state = await _snapshot(sessions)
-    assert len(state["speech_jobs"]) == len(JobKind)
+    assert {row["kind"] for row in state["speech_jobs"]} == {
+        row["kind"] for row in rows.values()
+    } | {stage.value for stage in expected}
     assert all(row["status"] == "done" for row in state["speech_jobs"])
     call = state["speech_calls"][0]
     assert call["completed_at"] is not None
@@ -919,8 +939,11 @@ async def test_postgres_retry_repairs_call_and_preserves_upstream_jobs(pg, kind,
     assert selected["status"] == "queued" and selected["attempts"] == 0
     assert selected["max_attempts"] == ATTEMPTS[kind.value]
     call = state["speech_calls"][0]
-    assert call["processing_status"] == "queued"
-    assert call["completed_at"] is None and call["analysis_status"] == "pending"
+    if kind is JobKind.EVALUATE:
+        assert call == before["speech_calls"][0]
+    else:
+        assert call["processing_status"] == "queued"
+        assert call["completed_at"] is None and call["analysis_status"] == "pending"
     assert [row["event_type"] for row in state["speech_audit_events"]] == ["job.retry"]
 
 

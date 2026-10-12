@@ -1,6 +1,5 @@
 """Подготовка промпта и выбор модели; внешние HTTP-вызовы здесь не выполняются."""
 
-import hmac
 import json
 import re
 
@@ -13,6 +12,7 @@ from src.application.dto.model_execution import (
 )
 from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.ports.model_requests import PromptCatalogue
+from src.application.worker_access import authorize_worker
 
 _VARIABLE = re.compile(r"\{\{(?P<name>[a-z_]+)\}\}")
 
@@ -57,14 +57,7 @@ class ModelRequestService:
         Пустой настроенный токен закрывает маршрут с 503; неверный даёт 401.
         Тело разговора и значение токена в ошибки не включаются.
         """
-        if not self._worker_token:
-            raise ApplicationError(ErrorKind.UNAVAILABLE, "worker access is not configured")
-        supplied = authorization or ""
-        scheme, _, token = supplied.partition(" ")
-        if scheme.lower() != "bearer" or not hmac.compare_digest(
-            token.encode(), self._worker_token.encode()
-        ):
-            raise ApplicationError(ErrorKind.UNAUTHORIZED, "worker access denied", challenge=True)
+        authorize_worker(self._worker_token, authorization)
         return await self.prepare(request)
 
     async def prepare(self, request: ModelPreparationRequest) -> PreparedModelRequest:

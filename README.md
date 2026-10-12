@@ -110,7 +110,7 @@ SPEECH_REQUIRE_LIVE_PROOFS=1 uv run --locked pytest -q -rs
 устанавливается `SPEECH_REQUIRE_LIVE_PROOFS=1`. Дополнительные тесты внешних
 сервисов требуют собственного окружения; пропуски отображаются через `-rs`.
 
-`/ready` проверяет подключение и ревизию `sp_0015_drop_masking`.
+`/ready` проверяет подключение и ревизию `sp_0016_evaluation_jobs`.
 Ожидаемая ревизия находится в `src/infrastructure/persistence/session.py`.
 Пулы и транзакции: [время жизни ресурсов](docs/architecture.md#транзакции-и-ресурсы).
 

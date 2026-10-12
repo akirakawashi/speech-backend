@@ -1,7 +1,9 @@
-from src.domain.auth.dev_users import ROLE_HR_TECH, ROLE_TECH_ECONOMY, ROLE_TECH_ONLY
-from src.domain.auth.permissions import (
+from src.domain.auth.roles import (
     ADMIN_ROLE,
     ANALYTICS_READER_ROLE,
+    ROLE_HR_TECH,
+    ROLE_TECH_ECONOMY,
+    ROLE_TECH_ONLY,
     SUPER_ADMIN_ROLE,
     USER_ROLE,
 )

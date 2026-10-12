@@ -24,6 +24,7 @@ def run_worker(args: argparse.Namespace) -> int:
     stages = parse_stages(args.stages)
 
     from src.di.analysis import build_analysis_client
+    from src.di.evaluation import build_queue_evaluation
     from src.di.pipeline import build_registry
     from src.di.sources import build_worker_source
     from src.infrastructure.clients.whisper import build_whisper_client
@@ -65,6 +66,7 @@ def run_worker(args: argparse.Namespace) -> int:
         ),
         transcription=build_whisper_client(settings) if JobKind.TRANSCRIBE in stages else None,
         analysis=build_analysis_client(settings) if JobKind.ANALYZE in stages else None,
+        evaluation=build_queue_evaluation(settings) if JobKind.EVALUATE in stages else None,
     )
     worker = Worker(queue, build_registry(stages), deps, lanes=lanes)
 

@@ -160,8 +160,11 @@ HTTP-клиента или домена. Не скрываем неожидан�
 Реальный маршрут конвейера: `application/pipeline/transcribe.py` использует
 порты из `application/ports/`, DTO из `application/dto/` и правила определения
 ролей; `di/pipeline.py` внедряет чтение и запись PostgreSQL, хранилище,
-обработку ffmpeg и выбранный клиент распознавания. Универсальный транспорт
-распознавания собран отдельно в `di/transcription.py`.
+обработку ffmpeg и HTTP-клиент Whisper. Его параметры собраны из
+`SPEECH_WHISPER_*`, бюджет вызова задаёт
+`infrastructure/transcription/execution.py`. Отдельный старый сценарий
+загрузки аудио удалён: он не был подключён к роутерам API речи.
+Подробнее — [настройки и очистка](configuration.md).
 
 ## Настройки и DI
 

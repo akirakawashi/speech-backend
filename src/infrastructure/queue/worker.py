@@ -462,6 +462,8 @@ async def mark_call_after_dead_job(
     Без этого звонок оставался бы в статусе «в очереди» навсегда и попадал бы в
     счётчик «в очереди на расшифровку» — тот, что видит пользователь на экране.
     """
+    if kind is JobKind.EVALUATE:
+        return
     if kind is JobKind.ANALYZE:
         await session.execute(
             text(
@@ -529,6 +531,8 @@ async def _apply_call_status(session: AsyncSession, job: ClaimedJob, result: Sta
     звонком закончена», и проставить её на середине значило бы разрешить
     удалять недоделанное.
     """
+    if result.processing_status is None:
+        return
     await session.execute(
         text(
             "UPDATE speech_calls SET processing_status = :status, updated_at = now(), "

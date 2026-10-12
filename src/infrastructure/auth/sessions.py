@@ -29,10 +29,10 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import datetime
-from typing import Any, Final, cast
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import CursorResult, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 #: Имя куки сессии. Общее с фронтом — он её не читает (`HttpOnly`), но имя
@@ -137,12 +137,6 @@ _REVOKE_SQL = text(
     "UPDATE speech_sessions SET revoked_at = now() WHERE id = :id AND revoked_at IS NULL"
 )
 
-#: «Выкинуть человека отовсюду» — вопрос про человека, а не про сессию: он мог
-#: войти с трёх машин. Под это заведён индекс по `sub`.
-_REVOKE_ALL_SQL = text(
-    "UPDATE speech_sessions SET revoked_at = now() WHERE sub = :sub AND revoked_at IS NULL"
-)
-
 
 async def create_session(
     session: AsyncSession,
@@ -226,11 +220,3 @@ async def refresh_session(
 async def revoke_session(session: AsyncSession, session_id: str) -> None:
     """Погасить одну сессию. Не удаление: администратору нужно видеть, что вход был."""
     await session.execute(_REVOKE_SQL, {"id": session_id})
-
-
-async def revoke_sessions_for_sub(session: AsyncSession, sub: str) -> int:
-    """Погасить все сессии человека. Возвращает, сколько погашено."""
-    # `cast` к `CursorResult` — как в admin_routes: `Result` объявлен без
-    # `rowcount`, хотя у выполненного `UPDATE` он есть всегда.
-    result = cast(CursorResult[Any], await session.execute(_REVOKE_ALL_SQL, {"sub": sub}))
-    return int(result.rowcount or 0)

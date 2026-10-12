@@ -65,7 +65,16 @@ def test_containers_receive_only_explicit_process_settings(service: str) -> None
         "SPEECH_QUALITY_LLM_",
         "TRANSCRIPTION_",
     )
-    assert not any(name.startswith(worker_prefixes) for name in spec["environment"])
+    api_owned = {
+        "SPEECH_NCC_INGEST_INTERVAL_SECONDS",
+        "SPEECH_TELPHIN_INGEST_INTERVAL_SECONDS",
+        "SPEECH_NCC_IMMEDIATE_SHARE",
+        "SPEECH_QUALITY_LLM_MODEL",
+        "SPEECH_QUALITY_LLM_MAX_TOKENS",
+    }
+    assert not any(
+        name.startswith(worker_prefixes) and name not in api_owned for name in spec["environment"]
+    )
 
 
 @pytest.mark.parametrize("service", ("speech-ms", "migrate-speech"))

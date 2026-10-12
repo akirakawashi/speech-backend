@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.application.dto.quality_execution import QualityModelRequest
 from src.application.errors.quality import (
     QualityModelError as QualityModelError,
     QualityModelNotConfigured as QualityModelNotConfigured,
@@ -120,3 +121,18 @@ __all__ = [
     "QualityModelNotConfigured",
     "build_quality_client",
 ]
+
+
+class PreparedQualityModelClient:
+    """Исполнить выданные бэкендом сообщения и параметры через существующий HTTP-транспорт."""
+
+    def __init__(self, client: QualityModelClient) -> None:
+        """Принять адрес, ключ и таймаут; имя модели и лимит берём из каждого DTO."""
+        self._client = client
+
+    async def complete(self, request: QualityModelRequest) -> str:
+        """Выполнить один запрос и вернуть текст ответа без собственного промпта."""
+        client = self._client.model_copy(
+            update={"model": request.model, "max_tokens": request.max_tokens}
+        )
+        return await client.complete([message.model_dump() for message in request.messages])

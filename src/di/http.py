@@ -14,6 +14,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.di.worker_tasks import build_worker_schedule
 from src.presentation.http.admin_routes import router as admin_router
 from src.presentation.http.api import router
 from src.presentation.http.audio_cookie import AudioCookieMiddleware
@@ -24,6 +25,7 @@ from src.presentation.http.model_requests import router as model_requests_router
 from src.presentation.http.quality_routes import router as quality_router
 from src.presentation.http.report_routes import router as report_router
 from src.presentation.http.routes import router as api_v1_router
+from src.presentation.http.worker_tasks import router as worker_tasks_router
 from src.presentation.middleware.request_id import RequestIdMiddleware
 from src.setting.config import Settings, get_settings
 
@@ -35,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # — это открытый доступ к записям разговоров, и обнаруживать это по
     # факту обращения поздно.
     resolved.validate_speech_runtime()
+    build_worker_schedule(resolved)
 
     docs_enabled = resolved.app_env.strip().lower() in {"local", "alpha"}
     app = FastAPI(
@@ -68,4 +71,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(quality_router)
     app.include_router(dashboard_router)
     app.include_router(model_requests_router)
+    app.include_router(worker_tasks_router)
     return app
