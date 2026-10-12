@@ -1,0 +1,2696 @@
+{
+  "contract": "speech.api",
+  "direction": "both",
+  "schemas": {
+    "ActionResponse": {
+      "properties": {
+        "changed": {
+          "default": 0,
+          "title": "Changed",
+          "type": "integer"
+        },
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        }
+      },
+      "title": "ActionResponse",
+      "type": "object"
+    },
+    "AudioTicketResponse": {
+      "description": "\u0427\u0442\u043e \u0444\u0440\u043e\u043d\u0442 \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442 \u0432\u043c\u0435\u0441\u0442\u043e \u0441\u0430\u043c\u043e\u0439 \u043a\u0443\u043a\u0438: \u043e\u043d\u0430 `HttpOnly` \u0438 \u0435\u043c\u0443 \u043d\u0435 \u0432\u0438\u0434\u043d\u0430.",
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "expires_in": {
+          "title": "Expires In",
+          "type": "integer"
+        },
+        "issued": {
+          "title": "Issued",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "expires_in",
+        "issued"
+      ],
+      "title": "AudioTicketResponse",
+      "type": "object"
+    },
+    "AuditResponse": {
+      "$defs": {
+        "AuditRow": {
+          "properties": {
+            "actor_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actor Name"
+            },
+            "actor_roles": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Actor Roles",
+              "type": "array"
+            },
+            "actor_sub": {
+              "title": "Actor Sub",
+              "type": "string"
+            },
+            "call_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Call Id"
+            },
+            "event_type": {
+              "title": "Event Type",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "occurred_at": {
+              "format": "date-time",
+              "title": "Occurred At",
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": true,
+              "title": "Payload",
+              "type": "object"
+            },
+            "request_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Request Id"
+            }
+          },
+          "required": [
+            "id",
+            "occurred_at",
+            "event_type",
+            "actor_sub"
+          ],
+          "title": "AuditRow",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AuditRow"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "AuditResponse",
+      "type": "object"
+    },
+    "AuditRow": {
+      "properties": {
+        "actor_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor Name"
+        },
+        "actor_roles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Actor Roles",
+          "type": "array"
+        },
+        "actor_sub": {
+          "title": "Actor Sub",
+          "type": "string"
+        },
+        "call_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Id"
+        },
+        "event_type": {
+          "title": "Event Type",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "occurred_at": {
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Request Id"
+        }
+      },
+      "required": [
+        "id",
+        "occurred_at",
+        "event_type",
+        "actor_sub"
+      ],
+      "title": "AuditRow",
+      "type": "object"
+    },
+    "CallResponse": {
+      "$defs": {
+        "CallSource": {
+          "description": "\u041e\u0442\u043a\u0443\u0434\u0430 \u0437\u0432\u043e\u043d\u043e\u043a: \u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0435 NCC \u0438\u043b\u0438 \u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0435 \u0428\u041f\u0414 \u0441 \u0412\u0410\u0422\u0421 \u0422\u0435\u043b\u0444\u0438\u043d\u0430 (\u0444\u0438\u0447\u0430 14).\n\n\u041a\u043e\u043b\u043e\u043d\u043a\u0430 \u0443 \u0437\u0432\u043e\u043d\u043a\u0430, \u0430 \u043d\u0435 \u0434\u043e\u0433\u0430\u0434\u043a\u0430 \u043f\u043e `session_id`: \u043f\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0443 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u044b\n\u043e\u0442\u0447\u0451\u0442\u044b (S-35), \u0438 \u0432\u043e\u0440\u043a\u0435\u0440 \u0432\u044b\u0431\u0438\u0440\u0430\u0435\u0442 \u043f\u043e \u043d\u0435\u043c\u0443, \u043e\u0442\u043a\u0443\u0434\u0430 \u043a\u0430\u0447\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c.",
+          "enum": [
+            "ncc",
+            "telphin"
+          ],
+          "title": "CallSource",
+          "type": "string"
+        },
+        "SegmentModel": {
+          "description": "\u0420\u0435\u043f\u043b\u0438\u043a\u0430 \u0432 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0435 \u0437\u0432\u043e\u043d\u043a\u0430.\n\n`text` \u2014 **\u0437\u0430\u043c\u0430\u0441\u043a\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439** \u0442\u0435\u043a\u0441\u0442, \u0438 \u0434\u0440\u0443\u0433\u043e\u0433\u043e \u043f\u043e\u043b\u044f \u0437\u0434\u0435\u0441\u044c \u043d\u0435\u0442. \u0418\u0441\u0445\u043e\u0434\u043d\u044b\u0439\n\u043e\u0442\u0434\u0430\u0451\u0442\u0441\u044f \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u043c \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u043c \u0441 \u043f\u0440\u0430\u0432\u043e\u043c `reveal_pii` \u0438 \u0437\u0430\u043f\u0438\u0441\u044c\u044e \u0432 \u0436\u0443\u0440\u043d\u0430\u043b\n(AUT-03), \u0430 \u043d\u0435 \u043f\u043e\u043b\u0435\u043c, \u043a\u043e\u0442\u043e\u0440\u043e\u0435 \u043e\u0434\u043d\u0430\u0436\u0434\u044b \u043f\u043e\u043f\u0430\u0434\u0451\u0442 \u0432 \u0432\u044b\u0434\u0430\u0447\u0443 \u043f\u043e \u043d\u0435\u0434\u043e\u0441\u043c\u043e\u0442\u0440\u0443.\n\n\u041a\u043e\u0433\u0434\u0430 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430 \u0437\u0430\u043f\u0440\u043e\u0448\u0435\u043d\u0430 \u0441 `q`, \u043d\u0430\u0439\u0434\u0435\u043d\u043d\u043e\u0435 \u0432 \u044d\u0442\u043e\u043c \u0436\u0435 \u043f\u043e\u043b\u0435 \u043f\u043e\u043c\u0435\u0447\u0435\u043d\u043e\n\u0443\u043f\u0440\u0430\u0432\u043b\u044f\u044e\u0449\u0438\u043c\u0438 \u0441\u0438\u043c\u0432\u043e\u043b\u0430\u043c\u0438 `STX`/`ETX` \u2014 \u0442\u0435\u043c\u0438 \u0436\u0435, \u0447\u0442\u043e \u0432 \u0446\u0438\u0442\u0430\u0442\u0430\u0445 \u0432\u044b\u0434\u0430\u0447\u0438\n(PLY-04). \u041e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u043c \u043f\u043e\u043b\u0435\u043c \u044d\u0442\u043e \u043d\u0435 \u0441\u0434\u0435\u043b\u0430\u043d\u043e \u043d\u0430\u043c\u0435\u0440\u0435\u043d\u043d\u043e: \u0434\u0432\u0430 \u043f\u043e\u043b\u044f \u0441 \u0442\u0435\u043a\u0441\u0442\u043e\u043c\n\u043e\u0434\u043d\u043e\u0439 \u0440\u0435\u043f\u043b\u0438\u043a\u0438 \u043e\u0437\u043d\u0430\u0447\u0430\u043b\u0438 \u0431\u044b, \u0447\u0442\u043e \u043e\u0434\u043d\u0430\u0436\u0434\u044b \u043f\u043e\u043a\u0430\u0436\u0443\u0442 \u043d\u0435 \u0442\u043e, \u0430 \u0440\u0430\u0437\u043c\u0435\u0442\u043a\u0443 HTML\n\u0441\u0435\u0440\u0432\u0435\u0440 \u043d\u0435 \u043e\u0442\u0434\u0430\u0451\u0442 \u0432\u043e\u0432\u0441\u0435, \u0447\u0442\u043e\u0431\u044b \u0435\u0451 \u043d\u0435 \u043f\u0440\u0438\u0448\u043b\u043e\u0441\u044c \u0432\u0441\u0442\u0430\u0432\u043b\u044f\u0442\u044c \u043a\u0430\u043a \u0435\u0441\u0442\u044c.",
+          "properties": {
+            "end_ms": {
+              "title": "End Ms",
+              "type": "integer"
+            },
+            "seq": {
+              "title": "Seq",
+              "type": "integer"
+            },
+            "speaker": {
+              "title": "Speaker",
+              "type": "string"
+            },
+            "start_ms": {
+              "title": "Start Ms",
+              "type": "integer"
+            },
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "seq",
+            "speaker",
+            "start_ms",
+            "end_ms",
+            "text"
+          ],
+          "title": "SegmentModel",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "ai_node_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Node Id"
+        },
+        "ai_path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ai Path",
+          "type": "array"
+        },
+        "ai_suggestion": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ai Suggestion",
+          "type": "array"
+        },
+        "ai_suggestion_is_new": {
+          "default": false,
+          "title": "Ai Suggestion Is New",
+          "type": "boolean"
+        },
+        "analysis_status": {
+          "title": "Analysis Status",
+          "type": "string"
+        },
+        "audio_status": {
+          "title": "Audio Status",
+          "type": "string"
+        },
+        "call_id": {
+          "format": "uuid",
+          "title": "Call Id",
+          "type": "string"
+        },
+        "call_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Reason"
+        },
+        "call_reason_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Reason Code"
+        },
+        "call_reason_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call Reason Label"
+        },
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "direction": {
+          "title": "Direction",
+          "type": "string"
+        },
+        "duration_s": {
+          "title": "Duration S",
+          "type": "integer"
+        },
+        "ended_at": {
+          "format": "date-time",
+          "title": "Ended At",
+          "type": "string"
+        },
+        "hit_seqs": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Hit Seqs",
+          "type": "array"
+        },
+        "level_match": {
+          "items": {
+            "type": "boolean"
+          },
+          "title": "Level Match",
+          "type": "array"
+        },
+        "operator_login": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator Login"
+        },
+        "operator_node_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator Node Id"
+        },
+        "operator_path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Operator Path",
+          "type": "array"
+        },
+        "processing_status": {
+          "title": "Processing Status",
+          "type": "string"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Product"
+        },
+        "product_source": {
+          "default": "unknown",
+          "title": "Product Source",
+          "type": "string"
+        },
+        "project_title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Title"
+        },
+        "role_method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role Method"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment"
+        },
+        "segment_source": {
+          "default": "unknown",
+          "title": "Segment Source",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/SegmentModel"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
+        "sentiment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sentiment"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/CallSource",
+          "default": "ncc"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "call_id",
+        "session_id",
+        "started_at",
+        "ended_at",
+        "duration_s",
+        "direction",
+        "audio_status",
+        "processing_status",
+        "analysis_status"
+      ],
+      "title": "CallResponse",
+      "type": "object"
+    },
+    "ClassificationNode": {
+      "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u0432 \u043f\u0435\u0440\u0438\u043e\u0434\u0435 \u0432\u0441\u0442\u0440\u0435\u0447\u0430\u0435\u0442\u0441\u044f, \u2014 \u0432\u0430\u0440\u0438\u0430\u043d\u0442 \u0444\u0438\u043b\u044c\u0442\u0440\u0430 \u043e\u0442\u0447\u0451\u0442\u0430.",
+      "properties": {
+        "ai_calls": {
+          "default": 0,
+          "title": "Ai Calls",
+          "type": "integer"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "operator_calls": {
+          "default": 0,
+          "title": "Operator Calls",
+          "type": "integer"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "sort_order": {
+          "title": "Sort Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "level",
+        "label",
+        "sort_order"
+      ],
+      "title": "ClassificationNode",
+      "type": "object"
+    },
+    "ClassificationResponse": {
+      "$defs": {
+        "ClassificationNode": {
+          "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u0432 \u043f\u0435\u0440\u0438\u043e\u0434\u0435 \u0432\u0441\u0442\u0440\u0435\u0447\u0430\u0435\u0442\u0441\u044f, \u2014 \u0432\u0430\u0440\u0438\u0430\u043d\u0442 \u0444\u0438\u043b\u044c\u0442\u0440\u0430 \u043e\u0442\u0447\u0451\u0442\u0430.",
+          "properties": {
+            "ai_calls": {
+              "default": 0,
+              "title": "Ai Calls",
+              "type": "integer"
+            },
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "label": {
+              "title": "Label",
+              "type": "string"
+            },
+            "level": {
+              "title": "Level",
+              "type": "integer"
+            },
+            "operator_calls": {
+              "default": 0,
+              "title": "Operator Calls",
+              "type": "integer"
+            },
+            "parent_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Parent Id"
+            },
+            "sort_order": {
+              "title": "Sort Order",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "level",
+            "label",
+            "sort_order"
+          ],
+          "title": "ClassificationNode",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ClassificationNode"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "ClassificationResponse",
+      "type": "object"
+    },
+    "ClassifierAdminResponse": {
+      "$defs": {
+        "ClassifierNodeRow": {
+          "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u0439 (SP-310).",
+          "properties": {
+            "first_seen_at": {
+              "format": "date-time",
+              "title": "First Seen At",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "is_active": {
+              "title": "Is Active",
+              "type": "boolean"
+            },
+            "label": {
+              "title": "Label",
+              "type": "string"
+            },
+            "level": {
+              "title": "Level",
+              "type": "integer"
+            },
+            "operator_calls": {
+              "default": 0,
+              "title": "Operator Calls",
+              "type": "integer"
+            },
+            "parent_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Parent Id"
+            },
+            "sort_order": {
+              "title": "Sort Order",
+              "type": "integer"
+            },
+            "source": {
+              "$ref": "#/$defs/ClassifierSource"
+            }
+          },
+          "required": [
+            "id",
+            "level",
+            "label",
+            "source",
+            "sort_order",
+            "is_active",
+            "first_seen_at"
+          ],
+          "title": "ClassifierNodeRow",
+          "type": "object"
+        },
+        "ClassifierSource": {
+          "description": "\u041e\u0442\u043a\u0443\u0434\u0430 \u0443\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u0439 \u043f\u0440\u0438\u0448\u0451\u043b \u0432\u043f\u0435\u0440\u0432\u044b\u0435 (SP-310).\n\n\u0423\u0437\u0435\u043b \u0444\u0430\u0439\u043b\u0430 \u2014 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 `\u0422\u0435\u043c\u0430\u0442\u0438\u043a\u0438 (\u0444\u0438\u043d\u0430\u043b) \u0432\u0430\u0440\u0438\u0430\u043d\u0442 2`. \u0423\u0437\u0435\u043b NCC \u2014\n\u043f\u0443\u0442\u044c, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u043f\u043e\u0441\u0442\u0430\u0432\u0438\u043b \u043e\u043f\u0435\u0440\u0430\u0442\u043e\u0440, \u0430 \u0432 \u0444\u0430\u0439\u043b\u0435 \u0435\u0433\u043e \u043d\u0435 \u0431\u044b\u043b\u043e: \u0442\u0430\u043a\u0438\u0435 \u043f\u0440\u0438\u0451\u043c\n\u0434\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u0442 \u0441\u0430\u043c (\u0440\u0435\u0448\u0435\u043d\u0438\u0435 S-22), \u0430 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440 \u0432\u0438\u0434\u0438\u0442 \u0440\u0430\u0437\u043d\u0438\u0446\u0443 \u0438 \u0432\u044b\u043a\u043b\u044e\u0447\u0430\u0435\u0442\n\u043b\u0438\u0448\u043d\u0435\u0435.",
+          "enum": [
+            "file",
+            "ncc"
+          ],
+          "title": "ClassifierSource",
+          "type": "string"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ClassifierNodeRow"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "ClassifierAdminResponse",
+      "type": "object"
+    },
+    "ClassifierCount": {
+      "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u0438 \u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0437\u0432\u043e\u043d\u043a\u043e\u0432 \u0432 \u0435\u0433\u043e \u0432\u0435\u0442\u043a\u0435 (SP-310).",
+      "properties": {
+        "calls": {
+          "title": "Calls",
+          "type": "integer"
+        },
+        "node_id": {
+          "format": "uuid",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Path",
+          "type": "array"
+        }
+      },
+      "required": [
+        "node_id",
+        "calls"
+      ],
+      "title": "ClassifierCount",
+      "type": "object"
+    },
+    "ClassifierNodePatch": {
+      "properties": {
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "is_active"
+      ],
+      "title": "ClassifierNodePatch",
+      "type": "object"
+    },
+    "ClassifierNodeRow": {
+      "$defs": {
+        "ClassifierSource": {
+          "description": "\u041e\u0442\u043a\u0443\u0434\u0430 \u0443\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u0439 \u043f\u0440\u0438\u0448\u0451\u043b \u0432\u043f\u0435\u0440\u0432\u044b\u0435 (SP-310).\n\n\u0423\u0437\u0435\u043b \u0444\u0430\u0439\u043b\u0430 \u2014 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 `\u0422\u0435\u043c\u0430\u0442\u0438\u043a\u0438 (\u0444\u0438\u043d\u0430\u043b) \u0432\u0430\u0440\u0438\u0430\u043d\u0442 2`. \u0423\u0437\u0435\u043b NCC \u2014\n\u043f\u0443\u0442\u044c, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u043f\u043e\u0441\u0442\u0430\u0432\u0438\u043b \u043e\u043f\u0435\u0440\u0430\u0442\u043e\u0440, \u0430 \u0432 \u0444\u0430\u0439\u043b\u0435 \u0435\u0433\u043e \u043d\u0435 \u0431\u044b\u043b\u043e: \u0442\u0430\u043a\u0438\u0435 \u043f\u0440\u0438\u0451\u043c\n\u0434\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u0442 \u0441\u0430\u043c (\u0440\u0435\u0448\u0435\u043d\u0438\u0435 S-22), \u0430 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440 \u0432\u0438\u0434\u0438\u0442 \u0440\u0430\u0437\u043d\u0438\u0446\u0443 \u0438 \u0432\u044b\u043a\u043b\u044e\u0447\u0430\u0435\u0442\n\u043b\u0438\u0448\u043d\u0435\u0435.",
+          "enum": [
+            "file",
+            "ncc"
+          ],
+          "title": "ClassifierSource",
+          "type": "string"
+        }
+      },
+      "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u0439 (SP-310).",
+      "properties": {
+        "first_seen_at": {
+          "format": "date-time",
+          "title": "First Seen At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "operator_calls": {
+          "default": 0,
+          "title": "Operator Calls",
+          "type": "integer"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "sort_order": {
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/ClassifierSource"
+        }
+      },
+      "required": [
+        "id",
+        "level",
+        "label",
+        "source",
+        "sort_order",
+        "is_active",
+        "first_seen_at"
+      ],
+      "title": "ClassifierNodeRow",
+      "type": "object"
+    },
+    "ClassifierOption": {
+      "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u0434\u043b\u044f \u0444\u0438\u043b\u044c\u0442\u0440\u0430 \u00ab\u041a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f\u00bb \u2014 \u043f\u043b\u043e\u0441\u043a\u043e, \u0441\u043e \u0441\u0441\u044b\u043b\u043a\u043e\u0439 \u043d\u0430 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044f.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "sort_order": {
+          "title": "Sort Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "level",
+        "label",
+        "sort_order",
+        "is_active"
+      ],
+      "title": "ClassifierOption",
+      "type": "object"
+    },
+    "ClassifierResponse": {
+      "$defs": {
+        "ClassifierOption": {
+          "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u0434\u043b\u044f \u0444\u0438\u043b\u044c\u0442\u0440\u0430 \u00ab\u041a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f\u00bb \u2014 \u043f\u043b\u043e\u0441\u043a\u043e, \u0441\u043e \u0441\u0441\u044b\u043b\u043a\u043e\u0439 \u043d\u0430 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044f.",
+          "properties": {
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "is_active": {
+              "title": "Is Active",
+              "type": "boolean"
+            },
+            "label": {
+              "title": "Label",
+              "type": "string"
+            },
+            "level": {
+              "title": "Level",
+              "type": "integer"
+            },
+            "parent_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Parent Id"
+            },
+            "sort_order": {
+              "title": "Sort Order",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "level",
+            "label",
+            "sort_order",
+            "is_active"
+          ],
+          "title": "ClassifierOption",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ClassifierOption"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "ClassifierResponse",
+      "type": "object"
+    },
+    "DependencyRow": {
+      "properties": {
+        "configured": {
+          "title": "Configured",
+          "type": "boolean"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "reachable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reachable"
+        }
+      },
+      "required": [
+        "name",
+        "configured"
+      ],
+      "title": "DependencyRow",
+      "type": "object"
+    },
+    "JobRow": {
+      "properties": {
+        "attempts": {
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "call_id": {
+          "format": "uuid",
+          "title": "Call Id",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "lane": {
+          "title": "Lane",
+          "type": "string"
+        },
+        "last_error_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error At"
+        },
+        "last_error_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error Class"
+        },
+        "max_attempts": {
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "call_id",
+        "session_id",
+        "kind",
+        "lane",
+        "status",
+        "attempts",
+        "max_attempts",
+        "created_at"
+      ],
+      "title": "JobRow",
+      "type": "object"
+    },
+    "JobsResponse": {
+      "$defs": {
+        "JobRow": {
+          "properties": {
+            "attempts": {
+              "title": "Attempts",
+              "type": "integer"
+            },
+            "call_id": {
+              "format": "uuid",
+              "title": "Call Id",
+              "type": "string"
+            },
+            "created_at": {
+              "format": "date-time",
+              "title": "Created At",
+              "type": "string"
+            },
+            "finished_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Finished At"
+            },
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "title": "Kind",
+              "type": "string"
+            },
+            "lane": {
+              "title": "Lane",
+              "type": "string"
+            },
+            "last_error_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Last Error At"
+            },
+            "last_error_class": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Last Error Class"
+            },
+            "max_attempts": {
+              "title": "Max Attempts",
+              "type": "integer"
+            },
+            "session_id": {
+              "title": "Session Id",
+              "type": "string"
+            },
+            "status": {
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "call_id",
+            "session_id",
+            "kind",
+            "lane",
+            "status",
+            "attempts",
+            "max_attempts",
+            "created_at"
+          ],
+          "title": "JobRow",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/JobRow"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "default": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "JobsResponse",
+      "type": "object"
+    },
+    "LaneRow": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "lane": {
+          "title": "Lane",
+          "type": "string"
+        },
+        "oldest_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Oldest Seconds"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lane",
+        "status",
+        "count"
+      ],
+      "title": "LaneRow",
+      "type": "object"
+    },
+    "MeResponse": {
+      "properties": {
+        "auth_mode": {
+          "title": "Auth Mode",
+          "type": "string"
+        },
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "permissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permissions",
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "sub": {
+          "title": "Sub",
+          "type": "string"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        }
+      },
+      "required": [
+        "sub",
+        "auth_mode"
+      ],
+      "title": "MeResponse",
+      "type": "object"
+    },
+    "OptionModel": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "OptionModel",
+      "type": "object"
+    },
+    "OptionsResponse": {
+      "$defs": {
+        "OptionModel": {
+          "properties": {
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "label": {
+              "title": "Label",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "label"
+          ],
+          "title": "OptionModel",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/OptionModel"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "OptionsResponse",
+      "type": "object"
+    },
+    "PipelineResponse": {
+      "$defs": {
+        "DependencyRow": {
+          "properties": {
+            "configured": {
+              "title": "Configured",
+              "type": "boolean"
+            },
+            "detail": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Detail"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "reachable": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reachable"
+            }
+          },
+          "required": [
+            "name",
+            "configured"
+          ],
+          "title": "DependencyRow",
+          "type": "object"
+        },
+        "LaneRow": {
+          "properties": {
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "lane": {
+              "title": "Lane",
+              "type": "string"
+            },
+            "oldest_seconds": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Oldest Seconds"
+            },
+            "status": {
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lane",
+            "status",
+            "count"
+          ],
+          "title": "LaneRow",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "dead_total": {
+          "default": 0,
+          "title": "Dead Total",
+          "type": "integer"
+        },
+        "dependencies": {
+          "items": {
+            "$ref": "#/$defs/DependencyRow"
+          },
+          "title": "Dependencies",
+          "type": "array"
+        },
+        "errors_by_class": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Errors By Class",
+          "type": "object"
+        },
+        "failed_last_24h": {
+          "default": 0,
+          "title": "Failed Last 24H",
+          "type": "integer"
+        },
+        "lanes": {
+          "items": {
+            "$ref": "#/$defs/LaneRow"
+          },
+          "title": "Lanes",
+          "type": "array"
+        }
+      },
+      "title": "PipelineResponse",
+      "type": "object"
+    },
+    "ProjectPatch": {
+      "$defs": {
+        "Product": {
+          "description": "\u041e \u0447\u0451\u043c \u0437\u0432\u043e\u043d\u043e\u043a: \u043b\u0438\u043d\u0435\u0439\u043a\u0430 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430.\n\n\u0412\u0442\u043e\u0440\u043e\u0439 \u0443\u0440\u043e\u0432\u0435\u043d\u044c \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0430 \u0442\u0435\u043c\u0430\u0442\u0438\u043a. \u041a\u0430\u043a \u0438 \u0441\u0435\u0433\u043c\u0435\u043d\u0442, \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u0442 \u0438\u0437 \u043f\u0440\u043e\u0435\u043a\u0442\u0430 NCC,\n\u043a\u043e\u0433\u0434\u0430 \u0442\u043e\u0442 \u0441\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d, \u0438 \u0432\u044b\u0432\u043e\u0434\u0438\u0442\u0441\u044f \u0438\u0437 \u0440\u0430\u0437\u0433\u043e\u0432\u043e\u0440\u0430, \u043a\u043e\u0433\u0434\u0430 \u043d\u0435\u0442.",
+          "enum": [
+            "wallet",
+            "mobile",
+            "broadband"
+          ],
+          "title": "Product",
+          "type": "string"
+        },
+        "Segment": {
+          "description": "\u041a\u0442\u043e \u0437\u0432\u043e\u043d\u0438\u043b: \u044e\u0440\u0438\u0434\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u043b\u0438\u0446\u043e \u0438\u043b\u0438 \u0447\u0430\u0441\u0442\u043d\u043e\u0435.\n\n\u0412\u0435\u0440\u0445\u043d\u0438\u0439 \u0443\u0440\u043e\u0432\u0435\u043d\u044c \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0430 \u0442\u0435\u043c\u0430\u0442\u0438\u043a \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430. \u0422\u0435\u043c\u043e\u0439 \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u2014 \u044d\u0442\u043e\n\u0441\u0432\u043e\u0439\u0441\u0442\u0432\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0430, \u0430 \u043d\u0435 \u0440\u0430\u0437\u0433\u043e\u0432\u043e\u0440\u0430, \u2014 \u043d\u043e \u0444\u0438\u043b\u044c\u0442\u0440\u043e\u043c \u043d\u0443\u0436\u0435\u043d (\u0440\u0435\u0448\u0435\u043d\u0438\u0435 S-21).",
+          "enum": [
+            "b2b",
+            "individual"
+          ],
+          "title": "Segment",
+          "type": "string"
+        }
+      },
+      "description": "\u0427\u0442\u043e \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440 \u043c\u043e\u0436\u0435\u0442 \u043c\u0435\u043d\u044f\u0442\u044c \u0443 \u043e\u0447\u0435\u0440\u0435\u0434\u0438 NCC.\n\n`None` \u043e\u0437\u043d\u0430\u0447\u0430\u0435\u0442 \u00ab\u043d\u0435 \u0442\u0440\u043e\u0433\u0430\u0442\u044c\u00bb, \u0430 \u043d\u0435 \u00ab\u043e\u0447\u0438\u0441\u0442\u0438\u0442\u044c\u00bb: \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u043f\u043e\u043b\u0435\u0439 \u0444\u043e\u0440\u043c\u044b \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u0442\n\u043d\u0435\u0437\u0430\u043f\u043e\u043b\u043d\u0435\u043d\u043d\u043e\u0439, \u0438 \u0442\u0440\u0430\u043a\u0442\u043e\u0432\u0430\u0442\u044c \u044d\u0442\u043e \u043a\u0430\u043a \u0441\u0442\u0438\u0440\u0430\u043d\u0438\u0435 \u0437\u043d\u0430\u0447\u0438\u043b\u043e \u0431\u044b \u0442\u0435\u0440\u044f\u0442\u044c \u0441\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u0435\n\u043f\u0440\u0438 \u043a\u0430\u0436\u0434\u043e\u0439 \u043f\u0440\u0430\u0432\u043a\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f.",
+      "properties": {
+        "clear_product": {
+          "default": false,
+          "title": "Clear Product",
+          "type": "boolean"
+        },
+        "clear_segment": {
+          "default": false,
+          "title": "Clear Segment",
+          "type": "boolean"
+        },
+        "ingest_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ingest Enabled"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Product"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Segment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ProjectPatch",
+      "type": "object"
+    },
+    "ProjectRow": {
+      "properties": {
+        "calls": {
+          "default": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "data_channel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Channel"
+        },
+        "direction": {
+          "title": "Direction",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "ingest_enabled": {
+          "title": "Ingest Enabled",
+          "type": "boolean"
+        },
+        "last_call_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Call At"
+        },
+        "ncc_uuid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ncc Uuid"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Product"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment"
+        },
+        "source_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Key"
+        },
+        "synced_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Synced At"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "direction",
+        "ingest_enabled"
+      ],
+      "title": "ProjectRow",
+      "type": "object"
+    },
+    "ProjectsAdminResponse": {
+      "$defs": {
+        "ProjectRow": {
+          "properties": {
+            "calls": {
+              "default": 0,
+              "title": "Calls",
+              "type": "integer"
+            },
+            "data_channel": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Data Channel"
+            },
+            "direction": {
+              "title": "Direction",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            },
+            "ingest_enabled": {
+              "title": "Ingest Enabled",
+              "type": "boolean"
+            },
+            "last_call_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Last Call At"
+            },
+            "ncc_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Ncc Uuid"
+            },
+            "product": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Product"
+            },
+            "segment": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Segment"
+            },
+            "source_key": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Source Key"
+            },
+            "synced_at": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Synced At"
+            },
+            "title": {
+              "title": "Title",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "direction",
+            "ingest_enabled"
+          ],
+          "title": "ProjectRow",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ProjectRow"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "ProjectsAdminResponse",
+      "type": "object"
+    },
+    "QuoteModel": {
+      "properties": {
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "speaker": {
+          "title": "Speaker",
+          "type": "string"
+        },
+        "start_ms": {
+          "title": "Start Ms",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "start_ms",
+        "speaker",
+        "text"
+      ],
+      "title": "QuoteModel",
+      "type": "object"
+    },
+    "RevealResponse": {
+      "$defs": {
+        "RevealedSegment": {
+          "description": "\u0420\u0435\u043f\u043b\u0438\u043a\u0430 \u0431\u0435\u0437 \u043c\u0430\u0441\u043a\u0438.\n\n\u0416\u0438\u0432\u0451\u0442 \u0437\u0434\u0435\u0441\u044c, \u0430 \u043d\u0435 \u0440\u044f\u0434\u043e\u043c \u0441 \u0440\u0443\u0447\u043a\u043e\u0439 \u0440\u0430\u0441\u043a\u0440\u044b\u0442\u0438\u044f: \u044d\u0442\u043e \u0435\u0434\u0438\u043d\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f \u043c\u043e\u0434\u0435\u043b\u044c, \u0447\u044c\u0451\n\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u0438\u0435 \u0432\u044b\u043d\u043e\u0441\u0438\u0442 \u043d\u0430\u0440\u0443\u0436\u0443 \u0431\u043e\u043b\u044c\u0448\u0435 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0445 \u0434\u0430\u043d\u043d\u044b\u0445, \u0438 \u0437\u0430\u043c\u0435\u0442\u0438\u0442\u044c \u0442\u0430\u043a\u043e\u0435\n\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0449\u0435 \u0442\u0430\u043c, \u0433\u0434\u0435 \u0440\u044f\u0434\u043e\u043c \u043b\u0435\u0436\u0438\u0442 \u0432\u0435\u0441\u044c \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0439 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442 \u0438 \u043a\u0443\u0434\u0430 \u0441\u043c\u043e\u0442\u0440\u0438\u0442\n\u0441\u043d\u0438\u043c\u043e\u043a (`tests/contract_registry.py`).",
+          "properties": {
+            "pii_spans": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "title": "Pii Spans",
+              "type": "array"
+            },
+            "seq": {
+              "title": "Seq",
+              "type": "integer"
+            },
+            "text_raw": {
+              "title": "Text Raw",
+              "type": "string"
+            }
+          },
+          "required": [
+            "seq",
+            "text_raw"
+          ],
+          "title": "RevealedSegment",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "call_id": {
+          "format": "uuid",
+          "title": "Call Id",
+          "type": "string"
+        },
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/RevealedSegment"
+          },
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "call_id"
+      ],
+      "title": "RevealResponse",
+      "type": "object"
+    },
+    "RevealedSegment": {
+      "description": "\u0420\u0435\u043f\u043b\u0438\u043a\u0430 \u0431\u0435\u0437 \u043c\u0430\u0441\u043a\u0438.\n\n\u0416\u0438\u0432\u0451\u0442 \u0437\u0434\u0435\u0441\u044c, \u0430 \u043d\u0435 \u0440\u044f\u0434\u043e\u043c \u0441 \u0440\u0443\u0447\u043a\u043e\u0439 \u0440\u0430\u0441\u043a\u0440\u044b\u0442\u0438\u044f: \u044d\u0442\u043e \u0435\u0434\u0438\u043d\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f \u043c\u043e\u0434\u0435\u043b\u044c, \u0447\u044c\u0451\n\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u0438\u0435 \u0432\u044b\u043d\u043e\u0441\u0438\u0442 \u043d\u0430\u0440\u0443\u0436\u0443 \u0431\u043e\u043b\u044c\u0448\u0435 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0445 \u0434\u0430\u043d\u043d\u044b\u0445, \u0438 \u0437\u0430\u043c\u0435\u0442\u0438\u0442\u044c \u0442\u0430\u043a\u043e\u0435\n\u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0449\u0435 \u0442\u0430\u043c, \u0433\u0434\u0435 \u0440\u044f\u0434\u043e\u043c \u043b\u0435\u0436\u0438\u0442 \u0432\u0435\u0441\u044c \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0439 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442 \u0438 \u043a\u0443\u0434\u0430 \u0441\u043c\u043e\u0442\u0440\u0438\u0442\n\u0441\u043d\u0438\u043c\u043e\u043a (`tests/contract_registry.py`).",
+      "properties": {
+        "pii_spans": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Pii Spans",
+          "type": "array"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "text_raw": {
+          "title": "Text Raw",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "text_raw"
+      ],
+      "title": "RevealedSegment",
+      "type": "object"
+    },
+    "SearchItemModel": {
+      "$defs": {
+        "CallSource": {
+          "description": "\u041e\u0442\u043a\u0443\u0434\u0430 \u0437\u0432\u043e\u043d\u043e\u043a: \u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0435 NCC \u0438\u043b\u0438 \u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0435 \u0428\u041f\u0414 \u0441 \u0412\u0410\u0422\u0421 \u0422\u0435\u043b\u0444\u0438\u043d\u0430 (\u0444\u0438\u0447\u0430 14).\n\n\u041a\u043e\u043b\u043e\u043d\u043a\u0430 \u0443 \u0437\u0432\u043e\u043d\u043a\u0430, \u0430 \u043d\u0435 \u0434\u043e\u0433\u0430\u0434\u043a\u0430 \u043f\u043e `session_id`: \u043f\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0443 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u044b\n\u043e\u0442\u0447\u0451\u0442\u044b (S-35), \u0438 \u0432\u043e\u0440\u043a\u0435\u0440 \u0432\u044b\u0431\u0438\u0440\u0430\u0435\u0442 \u043f\u043e \u043d\u0435\u043c\u0443, \u043e\u0442\u043a\u0443\u0434\u0430 \u043a\u0430\u0447\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c.",
+          "enum": [
+            "ncc",
+            "telphin"
+          ],
+          "title": "CallSource",
+          "type": "string"
+        },
+        "QuoteModel": {
+          "properties": {
+            "seq": {
+              "title": "Seq",
+              "type": "integer"
+            },
+            "speaker": {
+              "title": "Speaker",
+              "type": "string"
+            },
+            "start_ms": {
+              "title": "Start Ms",
+              "type": "integer"
+            },
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "seq",
+            "start_ms",
+            "speaker",
+            "text"
+          ],
+          "title": "QuoteModel",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "ai_node_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Node Id"
+        },
+        "ai_path": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ai Path",
+          "type": "array"
+        },
+        "audio_status": {
+          "title": "Audio Status",
+          "type": "string"
+        },
+        "call_id": {
+          "format": "uuid",
+          "title": "Call Id",
+          "type": "string"
+        },
+        "duration_s": {
+          "title": "Duration S",
+          "type": "integer"
+        },
+        "hit_seqs": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Hit Seqs",
+          "type": "array"
+        },
+        "match_count": {
+          "title": "Match Count",
+          "type": "integer"
+        },
+        "operator_login": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator Login"
+        },
+        "processing_status": {
+          "title": "Processing Status",
+          "type": "string"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Product"
+        },
+        "product_source": {
+          "default": "unknown",
+          "title": "Product Source",
+          "type": "string"
+        },
+        "project_title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Title"
+        },
+        "quotes": {
+          "items": {
+            "$ref": "#/$defs/QuoteModel"
+          },
+          "title": "Quotes",
+          "type": "array"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment"
+        },
+        "segment_source": {
+          "default": "unknown",
+          "title": "Segment Source",
+          "type": "string"
+        },
+        "sentiment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sentiment"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/CallSource",
+          "default": "ncc"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "session_id",
+        "started_at",
+        "duration_s",
+        "match_count",
+        "audio_status",
+        "processing_status"
+      ],
+      "title": "SearchItemModel",
+      "type": "object"
+    },
+    "SearchResponse": {
+      "$defs": {
+        "CallSource": {
+          "description": "\u041e\u0442\u043a\u0443\u0434\u0430 \u0437\u0432\u043e\u043d\u043e\u043a: \u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0435 NCC \u0438\u043b\u0438 \u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0435 \u0428\u041f\u0414 \u0441 \u0412\u0410\u0422\u0421 \u0422\u0435\u043b\u0444\u0438\u043d\u0430 (\u0444\u0438\u0447\u0430 14).\n\n\u041a\u043e\u043b\u043e\u043d\u043a\u0430 \u0443 \u0437\u0432\u043e\u043d\u043a\u0430, \u0430 \u043d\u0435 \u0434\u043e\u0433\u0430\u0434\u043a\u0430 \u043f\u043e `session_id`: \u043f\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0443 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u044b\n\u043e\u0442\u0447\u0451\u0442\u044b (S-35), \u0438 \u0432\u043e\u0440\u043a\u0435\u0440 \u0432\u044b\u0431\u0438\u0440\u0430\u0435\u0442 \u043f\u043e \u043d\u0435\u043c\u0443, \u043e\u0442\u043a\u0443\u0434\u0430 \u043a\u0430\u0447\u0430\u0442\u044c \u0437\u0430\u043f\u0438\u0441\u044c.",
+          "enum": [
+            "ncc",
+            "telphin"
+          ],
+          "title": "CallSource",
+          "type": "string"
+        },
+        "QuoteModel": {
+          "properties": {
+            "seq": {
+              "title": "Seq",
+              "type": "integer"
+            },
+            "speaker": {
+              "title": "Speaker",
+              "type": "string"
+            },
+            "start_ms": {
+              "title": "Start Ms",
+              "type": "integer"
+            },
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "seq",
+            "start_ms",
+            "speaker",
+            "text"
+          ],
+          "title": "QuoteModel",
+          "type": "object"
+        },
+        "SearchItemModel": {
+          "properties": {
+            "ai_node_id": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Ai Node Id"
+            },
+            "ai_path": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Ai Path",
+              "type": "array"
+            },
+            "audio_status": {
+              "title": "Audio Status",
+              "type": "string"
+            },
+            "call_id": {
+              "format": "uuid",
+              "title": "Call Id",
+              "type": "string"
+            },
+            "duration_s": {
+              "title": "Duration S",
+              "type": "integer"
+            },
+            "hit_seqs": {
+              "items": {
+                "type": "integer"
+              },
+              "title": "Hit Seqs",
+              "type": "array"
+            },
+            "match_count": {
+              "title": "Match Count",
+              "type": "integer"
+            },
+            "operator_login": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Operator Login"
+            },
+            "processing_status": {
+              "title": "Processing Status",
+              "type": "string"
+            },
+            "product": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Product"
+            },
+            "product_source": {
+              "default": "unknown",
+              "title": "Product Source",
+              "type": "string"
+            },
+            "project_title": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Project Title"
+            },
+            "quotes": {
+              "items": {
+                "$ref": "#/$defs/QuoteModel"
+              },
+              "title": "Quotes",
+              "type": "array"
+            },
+            "segment": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Segment"
+            },
+            "segment_source": {
+              "default": "unknown",
+              "title": "Segment Source",
+              "type": "string"
+            },
+            "sentiment": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sentiment"
+            },
+            "session_id": {
+              "title": "Session Id",
+              "type": "string"
+            },
+            "source": {
+              "$ref": "#/$defs/CallSource",
+              "default": "ncc"
+            },
+            "started_at": {
+              "format": "date-time",
+              "title": "Started At",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call_id",
+            "session_id",
+            "started_at",
+            "duration_s",
+            "match_count",
+            "audio_status",
+            "processing_status"
+          ],
+          "title": "SearchItemModel",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/SearchItemModel"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        },
+        "period_calls": {
+          "title": "Period Calls",
+          "type": "integer"
+        },
+        "share": {
+          "title": "Share",
+          "type": "number"
+        },
+        "total_calls": {
+          "title": "Total Calls",
+          "type": "integer"
+        },
+        "total_matches": {
+          "title": "Total Matches",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mode",
+        "total_matches",
+        "total_calls",
+        "period_calls",
+        "share"
+      ],
+      "title": "SearchResponse",
+      "type": "object"
+    },
+    "SegmentModel": {
+      "description": "\u0420\u0435\u043f\u043b\u0438\u043a\u0430 \u0432 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0435 \u0437\u0432\u043e\u043d\u043a\u0430.\n\n`text` \u2014 **\u0437\u0430\u043c\u0430\u0441\u043a\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439** \u0442\u0435\u043a\u0441\u0442, \u0438 \u0434\u0440\u0443\u0433\u043e\u0433\u043e \u043f\u043e\u043b\u044f \u0437\u0434\u0435\u0441\u044c \u043d\u0435\u0442. \u0418\u0441\u0445\u043e\u0434\u043d\u044b\u0439\n\u043e\u0442\u0434\u0430\u0451\u0442\u0441\u044f \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u043c \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u043c \u0441 \u043f\u0440\u0430\u0432\u043e\u043c `reveal_pii` \u0438 \u0437\u0430\u043f\u0438\u0441\u044c\u044e \u0432 \u0436\u0443\u0440\u043d\u0430\u043b\n(AUT-03), \u0430 \u043d\u0435 \u043f\u043e\u043b\u0435\u043c, \u043a\u043e\u0442\u043e\u0440\u043e\u0435 \u043e\u0434\u043d\u0430\u0436\u0434\u044b \u043f\u043e\u043f\u0430\u0434\u0451\u0442 \u0432 \u0432\u044b\u0434\u0430\u0447\u0443 \u043f\u043e \u043d\u0435\u0434\u043e\u0441\u043c\u043e\u0442\u0440\u0443.\n\n\u041a\u043e\u0433\u0434\u0430 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430 \u0437\u0430\u043f\u0440\u043e\u0448\u0435\u043d\u0430 \u0441 `q`, \u043d\u0430\u0439\u0434\u0435\u043d\u043d\u043e\u0435 \u0432 \u044d\u0442\u043e\u043c \u0436\u0435 \u043f\u043e\u043b\u0435 \u043f\u043e\u043c\u0435\u0447\u0435\u043d\u043e\n\u0443\u043f\u0440\u0430\u0432\u043b\u044f\u044e\u0449\u0438\u043c\u0438 \u0441\u0438\u043c\u0432\u043e\u043b\u0430\u043c\u0438 `STX`/`ETX` \u2014 \u0442\u0435\u043c\u0438 \u0436\u0435, \u0447\u0442\u043e \u0432 \u0446\u0438\u0442\u0430\u0442\u0430\u0445 \u0432\u044b\u0434\u0430\u0447\u0438\n(PLY-04). \u041e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u043c \u043f\u043e\u043b\u0435\u043c \u044d\u0442\u043e \u043d\u0435 \u0441\u0434\u0435\u043b\u0430\u043d\u043e \u043d\u0430\u043c\u0435\u0440\u0435\u043d\u043d\u043e: \u0434\u0432\u0430 \u043f\u043e\u043b\u044f \u0441 \u0442\u0435\u043a\u0441\u0442\u043e\u043c\n\u043e\u0434\u043d\u043e\u0439 \u0440\u0435\u043f\u043b\u0438\u043a\u0438 \u043e\u0437\u043d\u0430\u0447\u0430\u043b\u0438 \u0431\u044b, \u0447\u0442\u043e \u043e\u0434\u043d\u0430\u0436\u0434\u044b \u043f\u043e\u043a\u0430\u0436\u0443\u0442 \u043d\u0435 \u0442\u043e, \u0430 \u0440\u0430\u0437\u043c\u0435\u0442\u043a\u0443 HTML\n\u0441\u0435\u0440\u0432\u0435\u0440 \u043d\u0435 \u043e\u0442\u0434\u0430\u0451\u0442 \u0432\u043e\u0432\u0441\u0435, \u0447\u0442\u043e\u0431\u044b \u0435\u0451 \u043d\u0435 \u043f\u0440\u0438\u0448\u043b\u043e\u0441\u044c \u0432\u0441\u0442\u0430\u0432\u043b\u044f\u0442\u044c \u043a\u0430\u043a \u0435\u0441\u0442\u044c.",
+      "properties": {
+        "end_ms": {
+          "title": "End Ms",
+          "type": "integer"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "speaker": {
+          "title": "Speaker",
+          "type": "string"
+        },
+        "start_ms": {
+          "title": "Start Ms",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "seq",
+        "speaker",
+        "start_ms",
+        "end_ms",
+        "text"
+      ],
+      "title": "SegmentModel",
+      "type": "object"
+    },
+    "SettingsPatch": {
+      "properties": {
+        "values": {
+          "additionalProperties": true,
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "title": "SettingsPatch",
+      "type": "object"
+    },
+    "SettingsResponse": {
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "overridden": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Overridden",
+          "type": "array"
+        },
+        "values": {
+          "additionalProperties": true,
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "title": "SettingsResponse",
+      "type": "object"
+    },
+    "StatsResponse": {
+      "$defs": {
+        "ClassifierCount": {
+          "description": "\u0423\u0437\u0435\u043b \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0442\u043e\u0440\u0430 \u0438 \u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0437\u0432\u043e\u043d\u043a\u043e\u0432 \u0432 \u0435\u0433\u043e \u0432\u0435\u0442\u043a\u0435 (SP-310).",
+          "properties": {
+            "calls": {
+              "title": "Calls",
+              "type": "integer"
+            },
+            "node_id": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            },
+            "path": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Path",
+              "type": "array"
+            }
+          },
+          "required": [
+            "node_id",
+            "calls"
+          ],
+          "title": "ClassifierCount",
+          "type": "object"
+        }
+      },
+      "description": "KPI \u043f\u0435\u0440\u0438\u043e\u0434\u0430 (SRC-08).\n\n\u0422\u0440\u0438 \u0447\u0438\u0441\u043b\u0430 \u0441\u0447\u0438\u0442\u0430\u044e\u0442\u0441\u044f \u043f\u043e **\u0432\u0441\u0435\u043c \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u043d\u044b\u043c** \u0437\u0432\u043e\u043d\u043a\u0430\u043c \u043f\u0435\u0440\u0438\u043e\u0434\u0430, \u0430 \u043d\u0435 \u043f\u043e\n\u043d\u0430\u0439\u0434\u0435\u043d\u043d\u044b\u043c \u043f\u043e\u0438\u0441\u043a\u043e\u043c: \u00ab\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043e\u00bb \u2014 \u044d\u0442\u043e \u043f\u0440\u043e \u0441\u0431\u043e\u0440, \u0430 \u043d\u0435 \u043f\u0440\u043e \u0437\u0430\u043f\u0440\u043e\u0441. \u0417\u0432\u043e\u043d\u043a\u0438 \u043f\u0440\u0438\n\u044d\u0442\u043e\u043c \u2014 \u043e\u0434\u043d\u043e\u0433\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0430, `source` \u0437\u0430\u043f\u0440\u043e\u0441\u0430 (S-35): \u0443 \u0432\u043a\u043b\u0430\u0434\u043e\u043a NCC \u0438 \u0422\u0435\u043b\u0444\u0438\u043d\u0430\n\u0441\u0447\u0451\u0442\u0447\u0438\u043a\u0438 \u0441\u0432\u043e\u0438.\n\n`topics` \u2014 \u00ab\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435 \u0442\u0435\u043c\u044b\u00bb (SRC-07): \u0434\u0435\u0441\u044f\u0442\u044c \u0443\u0437\u043b\u043e\u0432 \u0443\u0440\u043e\u0432\u043d\u044f \u0442\u0435\u043c\u044b (4) \u0441 \u0441\u0430\u043c\u044b\u043c\u0438\n\u0431\u043e\u043b\u044c\u0448\u0438\u043c\u0438 \u0432\u0435\u0442\u043a\u0430\u043c\u0438 \u043f\u043e \u043a\u043b\u0430\u0441\u0441\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u0438 \u0418\u0418 \u2014 \u0432 \u0442\u043e\u043c \u0436\u0435 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0435.",
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "processed": {
+          "title": "Processed",
+          "type": "integer"
+        },
+        "queued": {
+          "title": "Queued",
+          "type": "integer"
+        },
+        "topics": {
+          "items": {
+            "$ref": "#/$defs/ClassifierCount"
+          },
+          "title": "Topics",
+          "type": "array"
+        },
+        "transcribed": {
+          "title": "Transcribed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "processed",
+        "transcribed",
+        "queued"
+      ],
+      "title": "StatsResponse",
+      "type": "object"
+    },
+    "UserRow": {
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "first_seen_at": {
+          "format": "date-time",
+          "title": "First Seen At",
+          "type": "string"
+        },
+        "last_seen_at": {
+          "format": "date-time",
+          "title": "Last Seen At",
+          "type": "string"
+        },
+        "roles_last_seen": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles Last Seen",
+          "type": "array"
+        },
+        "sub": {
+          "title": "Sub",
+          "type": "string"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        }
+      },
+      "required": [
+        "sub",
+        "first_seen_at",
+        "last_seen_at"
+      ],
+      "title": "UserRow",
+      "type": "object"
+    },
+    "UsersResponse": {
+      "$defs": {
+        "UserRow": {
+          "properties": {
+            "display_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Display Name"
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Email"
+            },
+            "first_seen_at": {
+              "format": "date-time",
+              "title": "First Seen At",
+              "type": "string"
+            },
+            "last_seen_at": {
+              "format": "date-time",
+              "title": "Last Seen At",
+              "type": "string"
+            },
+            "roles_last_seen": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Roles Last Seen",
+              "type": "array"
+            },
+            "sub": {
+              "title": "Sub",
+              "type": "string"
+            },
+            "username": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Username"
+            }
+          },
+          "required": [
+            "sub",
+            "first_seen_at",
+            "last_seen_at"
+          ],
+          "title": "UserRow",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "contract_version": {
+          "default": "2.2",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/UserRow"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "title": "UsersResponse",
+      "type": "object"
+    }
+  },
+  "version": "2.2"
+}

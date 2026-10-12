@@ -1,0 +1,41 @@
+.venv/
+venv/
+.runtime/
+__pycache__/
+.pytest_cache/
+.pytest-tmp/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+.env
+*.egg-info/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.log
+certs/
+pytest/
+.pytest-*/*
+.pytest-*
+
+# Scratch directory for local runs: pytest basetemp overflow, one-off dumps,
+# CSV exports. Nothing under it is reproducible from the repository.
+.tmp/
+
+# Database dumps and table exports, wherever they land.
+*.dump
+*.sql
+*.sql.gz
+*.csv
+
+# Every .env variant, not just `.env` itself: a backup copy taken before an edit
+# does not match the exact name, and it holds live credentials. The example file
+# is the one deliberate exception.
+.env.*
+!.env.example
+
+# Каталог суточной выгрузки, если он оставлен по месту по умолчанию. Внутри —
+# записи разговоров реальных клиентов: в репозиторий они попасть не должны ни
+# при каких обстоятельствах.
+/.speech-export/

@@ -1,0 +1,574 @@
+# Службы Speech Analytics: сервис, интерфейс, хранилище записей, воркеры и задачи.
+#
+# Блоки служб перенесены из `docker-compose.yml` монорепозитория
+# `aicistent-backend`. Изменено одно значение — имя образа миграций (пояснение
+# на месте) — и два комментария, упоминавшие службы платформы: над
+# `migrate-speech` и у `SESSION_COOKIE_SECURE`.
+#
+# С 2026-10-09 у воркеров нет переменных и сертификатов сайдкара обезличивания:
+# этапа `mask` в конвейере больше нет.
+#
+# Postgres и Dify здесь не объявлены: это службы платформы, до них контейнеры
+# дотягиваются по двум внешним сетям внизу файла.
+services:
+  # Speech Analytics: своя база `speech`, своё дерево миграций, свой корень
+  # ревизий. Отсюда `-c alembic.ini`: другого дерева в образе нет.
+  migrate-speech:
+    profiles: ["operations"]
+    build:
+      context: .
+      target: migrations
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    # Имя своё, а не `MIGRATIONS_IMAGE` монорепозитория: там образ миграций один на
+    # все деревья, а здесь в нём только дерево речи. Под общим именем он затёр бы
+    # образ платформы на машине, где собираются оба.
+    image: ${SPEECH_MIGRATIONS_IMAGE:-aicistent-speech-migrations:local}
+    command:
+      - alembic
+      - -c
+      - alembic.ini
+      - upgrade
+      - head
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      SPEECH_MS_DATABASE_URL: ${AICISTENT_DOCKER_SPEECH_MS_MIGRATE_DATABASE_URL:?Set AICISTENT_DOCKER_SPEECH_MS_MIGRATE_DATABASE_URL in .env (speech_ms_migrate role)}
+    networks:
+      - dify_data
+
+  # Speech Analytics. Собирает записи разговоров из Naumen Contact Center,
+  # расшифровывает их нашим Whisper и даёт колл-центру поиск по содержанию.
+  # Проектная документация: aicistent-documentation/speech-analytics/.
+  #
+  # Отличие от четырёх сервисов выше: этот обслуживает браузер, а не соседний
+  # сервис. Ключа сервиса и mTLS у него нет — пользователя доказывает токен
+  # Keycloak. В боевом контуре перед ним встанет собственный nginx `speech-edge`;
+  # публикация на петлю здесь нужна, чтобы стенд был проверяем до его появления.
+  speech-ms:
+    profiles: ["managed-runtime"]
+    build:
+      context: .
+      target: speech-ms
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_MS_IMAGE:-aicistent-speech-ms:local}
+    container_name: aicistent_speech_ms
+    restart: unless-stopped
+    read_only: true
+    ports:
+      - "127.0.0.1:${AICISTENT_SPEECH_MS_DOCKER_PORT:-18096}:8096"
+    tmpfs:
+      # Отчёт в Excel пишет листы во временные файлы здесь, а tmpfs — это
+      # память. С расшифровкой (S-31) недельный отчёт — ~150 МБ XML; предел
+      # не даёт одной выгрузке съесть память узла (SP-605).
+      - /tmp:size=1g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      # Своя роль в общем кластере: сервис владеет таблицами speech_* и не
+      # должен доставать чужие. Суперпользовательского умолчания нет намеренно.
+      SPEECH_MS_DATABASE_URL: ${AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL:?Set AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL in .env (speech_ms_runtime role); there is deliberately no superuser default}
+      # `open` отключает аутентификацию целиком и разрешён только в local/alpha —
+      # процесс не стартует иначе, см. Settings.validate_speech_runtime.
+      SPEECH_AUTH_MODE: ${SPEECH_AUTH_MODE:-open}
+      SPEECH_KEYCLOAK_ISSUER_URL: ${SPEECH_KEYCLOAK_ISSUER_URL:-}
+      SPEECH_KEYCLOAK_JWKS_URL: ${SPEECH_KEYCLOAK_JWKS_URL:-}
+      SPEECH_KEYCLOAK_AUDIENCE: ${SPEECH_KEYCLOAK_AUDIENCE:-}
+      # Обмен кода на токен делает СЕРВИС, а не браузер: клиент `speech`
+      # конфиденциальный, и таким останется (ADR-SPEECH-0002). Поэтому адрес
+      # realm и секрет нужны здесь, а не только контейнеру фронта.
+      SPEECH_KEYCLOAK_URL: ${SPEECH_KEYCLOAK_URL:-}
+      SPEECH_KEYCLOAK_REALM: ${SPEECH_KEYCLOAK_REALM:-}
+      SPEECH_KEYCLOAK_CLIENT_ID: ${SPEECH_KEYCLOAK_CLIENT_ID:-}
+      SPEECH_KEYCLOAK_CLIENT_SECRET: ${SPEECH_KEYCLOAK_CLIENT_SECRET:-}
+      # От него собирается redirect_uri, и Keycloak сверяет его побайтово со
+      # своим списком. Должно совпадать с зарегистрированным в клиенте.
+      SPEECH_PUBLIC_BASE_URL: ${SPEECH_PUBLIC_BASE_URL:-}
+      SPEECH_SESSION_TTL_SECONDS: ${SPEECH_SESSION_TTL_SECONDS:-43200}
+      SPEECH_SESSION_REFRESH_SECONDS: ${SPEECH_SESSION_REFRESH_SECONDS:-900}
+      # Флаг `Secure` на `speech_session`, `speech_login` и `speech_audio`.
+      # Перечислен здесь поимённо, потому что `env_file: .env` у этого сервиса
+      # нет: без строки оператор, объявивший `SESSION_COOKIE_SECURE=always`,
+      # получал бы умолчание `auto`. Имя переменной то же, что у платформы, и
+      # читает его тот же код — src/presentation/http/cookies.py.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-auto}
+      # Сервису хранилище нужно не для записи, а для отдачи: воспроизведение
+      # берёт аудио оттуда по диапазонам байт (PLY-требования).
+      SPEECH_STORAGE_BASE_URL: ${SPEECH_STORAGE_BASE_URL:-http://speech-minio:9000}
+      SPEECH_STORAGE_BUCKET: ${SPEECH_STORAGE_BUCKET:-speech-recordings}
+      SPEECH_STORAGE_REGION: ${SPEECH_STORAGE_REGION:-us-east-1}
+      SPEECH_STORAGE_ACCESS_KEY_ID: ${SPEECH_STORAGE_ACCESS_KEY_ID:-}
+      SPEECH_STORAGE_SECRET_KEY: ${SPEECH_STORAGE_SECRET_KEY:-}
+      SPEECH_STORAGE_TIMEOUT_SECONDS: ${SPEECH_STORAGE_TIMEOUT_SECONDS:-60}
+      # Ключ к `/metrics`. Пустой — ручки нет вовсе (`404`), а не «есть, но отвечает
+      # 401»: глубина очереди и число звонков — сведения о работе колл-центра.
+      SPEECH_METRICS_KEY: ${SPEECH_METRICS_KEY:-}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8096/ready', timeout=2).read()"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      - default
+      - dify_data
+
+  # Интерфейс Speech Analytics.
+  #
+  # Без раздела `build:` в отличие от остальных служб: исходники живут в
+  # соседнем репозитории `aicistent-speech`, и собирает образ скрипт выпуска.
+  # Объявить здесь сборку значило бы объявить путь, которого в этом дереве нет.
+  #
+  # Все адреса и режим входа читаются **в рантайме** через `/config.json`, а не
+  # запекаются в бандл. Поэтому один образ работает в local, alpha и
+  # продуктиве, отличаясь только этими переменными.
+  speech-frontend:
+    profiles: ["managed-runtime"]
+    image: ${SPEECH_FRONTEND_IMAGE:-aicistent-speech-frontend:local}
+    container_name: aicistent_speech_frontend
+    restart: unless-stopped
+    read_only: true
+    ports:
+      # На петле: наружу интерфейс отдаёт прокси, а не контейнер.
+      - "127.0.0.1:${AICISTENT_SPEECH_FRONTEND_DOCKER_PORT:-18097}:3000"
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Умолчание `keycloak` — у самого фронта, а не здесь: опечатка в этой
+      # переменной должна давать отказ, а не открытый доступ к разговорам.
+      SPEECH_AUTH_MODE: ${SPEECH_AUTH_MODE:-open}
+      SPEECH_KEYCLOAK_URL: ${SPEECH_KEYCLOAK_URL:-}
+      SPEECH_KEYCLOAK_REALM: ${SPEECH_KEYCLOAK_REALM:-}
+      SPEECH_KEYCLOAK_CLIENT_ID: ${SPEECH_KEYCLOAK_CLIENT_ID:-}
+      SPEECH_KEYCLOAK_RESPONSE_MODE: ${SPEECH_KEYCLOAK_RESPONSE_MODE:-fragment}
+      SPEECH_KEYCLOAK_SCOPE: ${SPEECH_KEYCLOAK_SCOPE:-openid profile email}
+      SPEECH_KEYCLOAK_PKCE_ENABLED: ${SPEECH_KEYCLOAK_PKCE_ENABLED:-true}
+      # Пусто — значит «тот же источник»: фронт и API за одним прокси, и
+      # относительный путь надёжнее любого записанного адреса.
+      SPEECH_API_URL: ${SPEECH_API_URL:-}
+      # Куда фронт сам пробрасывает `/api/*`. Корпоративный nginx шлёт весь
+      # speech.ic-group.ru на порт фронта (2026-09-15), своего прокси перед ним
+      # нет, поэтому `/api` отвечает тот, до кого запрос дошёл. Читается при
+      # каждом запросе; `speech-ms` и фронт — в одной сети.
+      SPEECH_API_PROXY_TARGET: ${SPEECH_API_PROXY_TARGET:-http://speech-ms:8096}
+      SPEECH_DISPLAY_TIMEZONE: ${SPEECH_DISPLAY_TIMEZONE:-Europe/Moscow}
+    healthcheck:
+      # `/config.json`, а не корень: корень отдаёт страницу и при неработающем
+      # обработчике настроек, а именно он — единственное, что этот процесс
+      # обязан уметь сам.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/config.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - default
+
+  # Собственное объектное хранилище аудиозаписей.
+  #
+  # Своё, а не корпоративное: сервисная учётная запись корпоративного MinIO
+  # read-only на стороне провайдера, писать ею нельзя в принципе. И не
+  # `langfuse-minio`: смешивать записи разговоров с трассами наблюдаемости
+  # значит дать им общий срок хранения и общий список доступа, а у них ни то,
+  # ни другое не совпадает.
+  #
+  # Наружу не публикуется. Браузер получает аудио только через API с проверкой
+  # роли; подписанные ссылки на хранилище не выдаются — такая ссылка действует
+  # в обход прав и оседает в истории браузера и логах промежуточных узлов.
+  speech-minio:
+    profiles: ["managed-runtime"]
+    image: ${SPEECH_MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z}
+    container_name: aicistent_speech_minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      MINIO_ROOT_USER: ${SPEECH_MINIO_ROOT_USER:?Set SPEECH_MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${SPEECH_MINIO_ROOT_PASSWORD:?Set SPEECH_MINIO_ROOT_PASSWORD in .env}
+      # Консоль выключена: управление через `mc` с узла, а лишний веб-интерфейс рядом
+      # с записями разговоров — лишняя поверхность.
+      MINIO_BROWSER: "off"
+    volumes:
+      - speech_recordings:/data
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - default
+
+  # Воркеры конвейера Speech Analytics. Один образ, две роли, и различаются они
+  # только полосами: суточные воркеры берут пакет за прошедшие сутки, воркеры
+  # бэкфилла добирают его же, когда своей работы нет.
+  #
+  # Порядок полос в `--lanes` значения не имеет: очередь сортирует по
+  # приоритету, и суточные задания идут первыми в любом случае. Значение имеет
+  # состав: воркер, не перечисливший полосу, её заданий не увидит.
+  #
+  # Профиль `managed-runtime`: `up -d` поднимает воркеров вместе со всем
+  # остальным (SP-307).
+  #
+  # Раньше здесь стоял отдельный профиль, и причина была верной: воркер с
+  # неполным реестром этапов отказывался стартовать, а `restart: unless-stopped`
+  # превращает такой отказ в бесконечный перезапуск — два вечно падающих
+  # контейнера обесценивают журнал, настоящий отказ в нём уже не заметить.
+  #
+  # Причина исчезла: воркер берёт из очереди только те этапы, которые умеет, и
+  # объявляет неполноту в лог при каждом старте. Одна возможность упасть на
+  # старте осталась — клиент анализа не собирается без ключа Dify, и это
+  # правильный отказ: воркер, тихо решивший, что анализировать нечем, оставил бы
+  # суточный пакет без тем, ничего не сказав.
+  #
+  # Поэтому ключ объявлен обязательным в общем окружении ниже. `docker compose
+  # up` останавливается сразу и с внятным текстом — вместо того чтобы поднять
+  # контейнер, который будет перезапускаться до утра.
+  speech-worker-daily:
+    # Сколько ждать после `SIGTERM`, прежде чем убить.
+    #
+    # Воркер обрабатывает сигнал: `request_stop` доводит текущее задание и
+    # выходит. При умолчании Docker в десять секунд это не значило **ничего** —
+    # обработчик успевал только поставить флаг, и расшифровка, за которую уже
+    # заплачено временем GPU, выбрасывалась на каждой выкатке.
+    #
+    # Три минуты, а не длительность аренды (900 с): убийство воркера не теряет
+    # данных — задание вернётся в очередь по истечении аренды, — поэтому здесь
+    # не «досчитать любой ценой», а «не выбрасывать работу, которой осталось
+    # несколько секунд». Замер: медианный звонок 2:45 распознаётся за 10–20 с,
+    # самый длинный из шестидесяти одного (14:46) — под минуту. Держать выкатку
+    # четверть часа ради худшего случая дороже, чем один раз его переделать.
+    stop_grace_period: 180s
+    profiles: ["managed-runtime"]
+    build:
+      context: .
+      target: speech-worker
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_WORKER_IMAGE:-aicistent-speech-worker:local}
+    command: ["python", "-m", "src.presentation.cli.worker", "--lanes", "daily"]
+    # Реплики — здесь, как у `chat-files-worker`: `--scale` не переживает
+    # `up -d --wait` (ExecReload юнита). Выкатка 2026-09-29c так молча оставила
+    # по одному воркеру вместо двух и двух. Два и два — расчёт соединений
+    # Speech Analytics (02-architecture-design §9: четыре воркера).
+    deploy:
+      replicas: ${SPEECH_WORKER_DAILY_REPLICAS:-2}
+    restart: unless-stopped
+    read_only: true
+    # Больше обычного: сюда пишется скачанная запись, её даунмикс и каналы.
+    tmpfs:
+      - /tmp:size=4g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes: &speech_export_mount
+      # Каталог суточной выгрузки. Без этой строки `SPEECH_NCC_EXPORT_DIR`
+      # называл путь, которого внутри контейнера нет вовсе: переменная
+      # передавалась, каталог — нет, и сбор из локальной выгрузки не работал бы
+      # ни при какой настройке.
+      #
+      # Только для чтения: конвейер из этого каталога берёт и никогда в него не
+      # пишет, а лежат там разговоры реальных клиентов.
+      - ${SPEECH_NCC_EXPORT_HOST_DIR:-./.speech-export}:/var/lib/speech/export:ro
+    environment: &speech_worker_env
+      APP_ENV: ${APP_ENV:-local}
+      SPEECH_MS_DATABASE_URL: ${AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL:?Set AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL in .env (speech_ms_runtime role)}
+      SPEECH_NCC_SOURCE_KIND: ${SPEECH_NCC_SOURCE_KIND:-local_export}
+      # Путь **внутри контейнера**, и он закреплён: снаружи каталог выбирает
+      # `SPEECH_NCC_EXPORT_HOST_DIR`, точка монтирования от этого выбора не
+      # зависит.
+      SPEECH_NCC_EXPORT_DIR: /var/lib/speech/export
+      SPEECH_NCC_BASE_URL: ${SPEECH_NCC_BASE_URL:-}
+      SPEECH_NCC_USERNAME: ${SPEECH_NCC_USERNAME:-}
+      SPEECH_NCC_API_TOKEN: ${SPEECH_NCC_API_TOKEN:-}
+      # Отчётная база NCC для SPEECH_NCC_SOURCE_KIND=reporting_view: оттуда
+      # список звонков. Без этих строк источник в контейнере не настроить
+      # ничем — `env_file` у этих служб нет. Необязательны: другим источникам
+      # база не нужна, а `reporting_view` без них откажет на старте прогона и
+      # назовёт недостающее.
+      SPEECH_NCC_REPORTING_DATABASE_URL: ${SPEECH_NCC_REPORTING_DATABASE_URL:-}
+      SPEECH_NCC_REPORTING_DB_PASSWORD: ${SPEECH_NCC_REPORTING_DB_PASSWORD:-}
+      SPEECH_NCC_REPORTING_VIEWS: ${SPEECH_NCC_REPORTING_VIEWS:-}
+      SPEECH_NCC_REPORTING_TIMEZONE: ${SPEECH_NCC_REPORTING_TIMEZONE:-Europe/Moscow}
+      SPEECH_NCC_MIN_TALK_SECONDS: ${SPEECH_NCC_MIN_TALK_SECONDS:-10}
+      # Хранилище записей. Без этих шести строк `build_storage` собирал бы
+      # клиент с пустыми адресом и ключами — а именно воркеры кладут туда
+      # записи и читают их обратно. `env_file` у этих служб нет, и переменные
+      # из `.env` сами в контейнер не попадают.
+      SPEECH_STORAGE_BASE_URL: ${SPEECH_STORAGE_BASE_URL:-http://speech-minio:9000}
+      SPEECH_STORAGE_BUCKET: ${SPEECH_STORAGE_BUCKET:-speech-recordings}
+      SPEECH_STORAGE_REGION: ${SPEECH_STORAGE_REGION:-us-east-1}
+      SPEECH_STORAGE_ACCESS_KEY_ID: ${SPEECH_STORAGE_ACCESS_KEY_ID:-}
+      SPEECH_STORAGE_SECRET_KEY: ${SPEECH_STORAGE_SECRET_KEY:-}
+      SPEECH_STORAGE_TIMEOUT_SECONDS: ${SPEECH_STORAGE_TIMEOUT_SECONDS:-60}
+      # Распознавание. Воркер собирает клиент при старте и отказывается
+      # стартовать без адреса: пустой адрес означал бы, что суточный пакет
+      # молча копится в очереди.
+      SPEECH_WHISPER_BASE_URL: ${SPEECH_WHISPER_BASE_URL:-}
+      SPEECH_WHISPER_API_KEY: ${SPEECH_WHISPER_API_KEY:-}
+      SPEECH_WHISPER_MODEL: ${SPEECH_WHISPER_MODEL:-large-v3}
+      SPEECH_WHISPER_LANGUAGE: ${SPEECH_WHISPER_LANGUAGE:-ru}
+      SPEECH_WHISPER_TIMEOUT_SECONDS: ${SPEECH_WHISPER_TIMEOUT_SECONDS:-600}
+      SPEECH_WHISPER_VAD_FILTER: ${SPEECH_WHISPER_VAD_FILTER:-true}
+      # Анализ звонка. Ключ отдельного приложения Dify, а не агента чата.
+      SPEECH_DIFY_BASE_URL: ${AICISTENT_DOCKER_SPEECH_DIFY_BASE_URL:-http://api:5001/v1}
+      # Обязателен: воркеры берут этап анализа, а клиент анализа без ключа
+      # не собирается. Объявлено через `:?`, чтобы `up` остановился сразу и
+      # с внятным текстом, а не поднял контейнер, перезапускающийся до утра.
+      # Две задачи профиля `operations` снимают это требование у себя: к
+      # Dify они не ходят, и для них оно было бы враньём.
+      SPEECH_DIFY_APP_KEY: ${SPEECH_DIFY_APP_KEY:?Set SPEECH_DIFY_APP_KEY in .env - the speech workers take the analyze stage and refuse to start without it}
+      SPEECH_DIFY_TIMEOUT_SECONDS: ${SPEECH_DIFY_TIMEOUT_SECONDS:-120}
+      # Причины обращения (S-32): приложение «Speech: причина обращения» для
+      # `python -m src.presentation.cli.fill_reasons`. Необязателен: разбор без него цел.
+      SPEECH_DIFY_REASON_APP_KEY: ${SPEECH_DIFY_REASON_APP_KEY:-}
+    networks:
+      - default
+      - dify_data
+
+  speech-worker-backfill:
+    # Сколько ждать после `SIGTERM`, прежде чем убить.
+    #
+    # Воркер обрабатывает сигнал: `request_stop` доводит текущее задание и
+    # выходит. При умолчании Docker в десять секунд это не значило **ничего** —
+    # обработчик успевал только поставить флаг, и расшифровка, за которую уже
+    # заплачено временем GPU, выбрасывалась на каждой выкатке.
+    #
+    # Три минуты, а не длительность аренды (900 с): убийство воркера не теряет
+    # данных — задание вернётся в очередь по истечении аренды, — поэтому здесь
+    # не «досчитать любой ценой», а «не выбрасывать работу, которой осталось
+    # несколько секунд». Замер: медианный звонок 2:45 распознаётся за 10–20 с,
+    # самый длинный из шестидесяти одного (14:46) — под минуту. Держать выкатку
+    # четверть часа ради худшего случая дороже, чем один раз его переделать.
+    stop_grace_period: 180s
+    profiles: ["managed-runtime"]
+    build:
+      context: .
+      target: speech-worker
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_WORKER_IMAGE:-aicistent-speech-worker:local}
+    command: ["python", "-m", "src.presentation.cli.worker", "--lanes", "backfill,daily"]
+    # Реплики — в манифесте, по той же причине, что у `speech-worker-daily`.
+    deploy:
+      replicas: ${SPEECH_WORKER_BACKFILL_REPLICAS:-2}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=4g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes: *speech_export_mount
+    environment: *speech_worker_env
+    networks:
+      - default
+      - dify_data
+
+  # Суточный прогон — задача, а не служба: отработала за дату и завершилась.
+  # Расписание задаётся снаружи (таймер systemd на узле), поэтому профиль
+  # `operations`: `up -d` её не поднимает и поднимать не должен.
+  speech-daily-ingest:
+    profiles: ["operations"]
+    build:
+      context: .
+      target: speech-worker
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_WORKER_IMAGE:-aicistent-speech-worker:local}
+    command: ["python", "-m", "src.presentation.cli.daily_ingest", "--yesterday"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes: *speech_export_mount
+    environment:
+      <<: *speech_worker_env
+      # Анализ эта задача не вызывает, и требовать ключ Dify значило бы
+      # запретить её запуск в контуре, где приложения Dify ещё нет.
+      SPEECH_DIFY_APP_KEY: ${SPEECH_DIFY_APP_KEY:-}
+      # Телфин (фича 14, S-36): `daily_ingest --source telphin`. Только здесь:
+      # воркеру ключи не нужны — запись он берёт по ссылке хранилища, которая
+      # приходит со звонком. Пустой App ID — прогон Телфина откажет и назовёт
+      # недостающее; прогон NCC от этих строк не зависит.
+      SPEECH_TELPHIN_APP_ID: ${SPEECH_TELPHIN_APP_ID:-}
+      SPEECH_TELPHIN_APP_SECRET: ${SPEECH_TELPHIN_APP_SECRET:-}
+      SPEECH_TELPHIN_EXCLUDED_EXTENSIONS: ${SPEECH_TELPHIN_EXCLUDED_EXTENSIONS:-13240*000,13240*007,13240*444}
+      SPEECH_TELPHIN_EXCLUDED_GROUPS: ${SPEECH_TELPHIN_EXCLUDED_GROUPS:-22001}
+      SPEECH_TELPHIN_MIN_TALK_SECONDS: ${SPEECH_TELPHIN_MIN_TALK_SECONDS:-10}
+      SPEECH_TELPHIN_HISTORY_FROM: ${SPEECH_TELPHIN_HISTORY_FROM:-2026-09-01}
+      SPEECH_TELPHIN_HISTORY_DAYS_PER_RUN: ${SPEECH_TELPHIN_HISTORY_DAYS_PER_RUN:-7}
+      # Соль псевдонима номера клиента (ING-02). Пусто — только маска.
+      SPEECH_PHONE_HASH_PEPPER: ${SPEECH_PHONE_HASH_PEPPER:-}
+    networks:
+      - default
+      - dify_data
+
+  # Разбор истории. Задача, а не служба: отработала порцию и завершилась,
+  # расписание снаружи. Состояние живёт в базе (`speech_ingest_cursors`),
+  # поэтому порции складываются, даже если запускать их вручную и вразнобой.
+  #
+  # Команда по умолчанию — `status`, а не `run`. Тот же довод, что у
+  # `speech-prune` с режимом проверки: `docker compose run speech-backfill`,
+  # набранное по памяти, не должно начинать обход шестидесяти суток. Обход —
+  # явно:
+  #   docker compose --profile operations run --rm speech-backfill \
+  #       python -m src.presentation.cli.backfill run --days 7
+  speech-backfill:
+    profiles: ["operations"]
+    build:
+      context: .
+      target: speech-worker
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_WORKER_IMAGE:-aicistent-speech-worker:local}
+    command: ["python", "-m", "src.presentation.cli.backfill", "status"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes: *speech_export_mount
+    environment:
+      <<: *speech_worker_env
+      # Перечисление дат к Dify не ходит: анализ делают воркеры, разбирая
+      # очередь. Требовать здесь ключ значило бы запретить разбор истории в
+      # контуре, где приложения Dify ещё нет.
+      SPEECH_DIFY_APP_KEY: ${SPEECH_DIFY_APP_KEY:-}
+    networks:
+      - default
+      - dify_data
+
+  # Удаление по сроку хранения. Тоже задача и тоже по расписанию снаружи.
+  # Команда по умолчанию — **режим проверки**, без `--apply`: единственная
+  # необратимая задача проекта не должна удалять от того, что кто-то набрал
+  # `docker compose run speech-prune` по памяти. Удаление — явно:
+  #   docker compose --profile operations run --rm speech-prune python -m src.presentation.cli.prune --apply
+  speech-prune:
+    profiles: ["operations"]
+    build:
+      context: .
+      target: speech-worker
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_WORKER_IMAGE:-aicistent-speech-worker:local}
+    command: ["python", "-m", "src.presentation.cli.prune"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      <<: *speech_worker_env
+      # Анализ эта задача не вызывает, и требовать ключ Dify значило бы
+      # запретить её запуск в контуре, где приложения Dify ещё нет.
+      SPEECH_DIFY_APP_KEY: ${SPEECH_DIFY_APP_KEY:-}
+    networks:
+      - default
+      - dify_data
+
+  # Оценка звонков по скрипту продаж. Тоже задача и тоже по расписанию снаружи:
+  # каждый запуск берёт порцию неоценённых звонков — сначала свежие, остаток из
+  # истории (`--all`), — и не возвращается к тем, чья оценка уже не удалась
+  # (`--skip-failed`), иначе они уходили бы в модель по кругу.
+  #
+  # Команда по умолчанию — **режим проверки**, без `--apply`: она считает, сколько
+  # звонков ждут оценки, и модель не зовёт. Оценка — явно:
+  #   docker compose --profile operations run --rm speech-evaluate \
+  #       python -m src.presentation.cli.evaluate --all --skip-failed --limit 100 --apply
+  #
+  # Окружение своё, а не общее с воркерами: задаче нужны база и модель, и больше
+  # ничего. Ключи хранилища, NCC, Телфина и Dify сюда не попадают.
+  speech-evaluate:
+    profiles: ["operations"]
+    build:
+      context: .
+      target: speech-worker
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    image: ${SPEECH_WORKER_IMAGE:-aicistent-speech-worker:local}
+    command: ["python", "-m", "src.presentation.cli.evaluate", "--all", "--skip-failed", "--limit", "100"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      SPEECH_MS_DATABASE_URL: ${AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL:?Set AICISTENT_DOCKER_SPEECH_MS_DATABASE_URL in .env (speech_ms_runtime role)}
+      # Задача идёт по одному звонку и открывает сессии по очереди. Пул объявлен
+      # под это, а не оставлен общим (5 + 3): по расписанию в четверть часа она
+      # работает почти всё время, и её потолок — часть бюджета соединений
+      # кластера, общего с Dify.
+      DB_POOL_SIZE: "1"
+      DB_MAX_OVERFLOW: "1"
+      # Модель оценки — напрямую, OpenAI-совместимым API. Необязательны: без
+      # адреса команда отказывается работать и называет причину, а проверка
+      # без `--apply` модель не зовёт вовсе.
+      SPEECH_QUALITY_LLM_BASE_URL: ${SPEECH_QUALITY_LLM_BASE_URL:-}
+      SPEECH_QUALITY_LLM_API_KEY: ${SPEECH_QUALITY_LLM_API_KEY:-}
+      SPEECH_QUALITY_LLM_MODEL: ${SPEECH_QUALITY_LLM_MODEL:-qwen3.8-27b-fast}
+      SPEECH_QUALITY_LLM_TIMEOUT_SECONDS: ${SPEECH_QUALITY_LLM_TIMEOUT_SECONDS:-180}
+      SPEECH_QUALITY_LLM_MAX_TOKENS: ${SPEECH_QUALITY_LLM_MAX_TOKENS:-4096}
+    networks:
+      - default
+      - dify_data
+
+volumes:
+  # Аудиозаписи разговоров. Именованный том: пересоздание контейнера
+  # хранилища не должно уносить архив за полгода.
+  speech_recordings:
+    name: ${SPEECH_RECORDINGS_VOLUME:-aicistent_speech_recordings}
+
+networks:
+  default:
+    external: true
+    name: ${AICISTENT_SHARED_DOCKER_NETWORK:-local_default}
+  dify_data:
+    external: true
+    name: ${AICISTENT_DIFY_DATA_DOCKER_NETWORK:-local_data}

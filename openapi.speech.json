@@ -1,0 +1,5423 @@
+{
+  "components": {
+    "schemas": {
+      "ActionResponse": {
+        "properties": {
+          "changed": {
+            "default": 0,
+            "title": "Changed",
+            "type": "integer"
+          },
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "title": "ActionResponse",
+        "type": "object"
+      },
+      "AudioTicketResponse": {
+        "description": "Что фронт получает вместо самой куки: она `HttpOnly` и ему не видна.",
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "issued": {
+            "title": "Issued",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expires_in",
+          "issued"
+        ],
+        "title": "AudioTicketResponse",
+        "type": "object"
+      },
+      "AuditResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "AuditResponse",
+        "type": "object"
+      },
+      "AuditRow": {
+        "properties": {
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
+          "actor_roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actor Roles",
+            "type": "array"
+          },
+          "actor_sub": {
+            "title": "Actor Sub",
+            "type": "string"
+          },
+          "call_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Id"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "id",
+          "occurred_at",
+          "event_type",
+          "actor_sub"
+        ],
+        "title": "AuditRow",
+        "type": "object"
+      },
+      "CallQualityResponse": {
+        "description": "Оценка звонка по скрипту.\n\n`script_applies` — оценивается ли звонок по этому скрипту вообще. Если нет,\nбаллов и этапов у звонка нет: это входящее обращение или звонок другой\nкампании, и 0 за них поставить было бы неправдой.",
+        "properties": {
+          "all_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Passed"
+          },
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "model_name": {
+            "title": "Model Name",
+            "type": "string"
+          },
+          "objections": {
+            "items": {
+              "$ref": "#/components/schemas/QualityObjectionModel"
+            },
+            "title": "Objections",
+            "type": "array"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "outcome_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Label"
+          },
+          "passed_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed Count"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "script_applies": {
+            "title": "Script Applies",
+            "type": "boolean"
+          },
+          "script_version": {
+            "title": "Script Version",
+            "type": "string"
+          },
+          "stage_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Count"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/QualityStageModel"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "call_id",
+          "script_version",
+          "model_name",
+          "evaluated_at",
+          "script_applies"
+        ],
+        "title": "CallQualityResponse",
+        "type": "object"
+      },
+      "CallResponse": {
+        "properties": {
+          "ai_node_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Node Id"
+          },
+          "ai_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ai Path",
+            "type": "array"
+          },
+          "ai_suggestion": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ai Suggestion",
+            "type": "array"
+          },
+          "ai_suggestion_is_new": {
+            "default": false,
+            "title": "Ai Suggestion Is New",
+            "type": "boolean"
+          },
+          "analysis_status": {
+            "title": "Analysis Status",
+            "type": "string"
+          },
+          "audio_status": {
+            "title": "Audio Status",
+            "type": "string"
+          },
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "call_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Reason"
+          },
+          "call_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Reason Code"
+          },
+          "call_reason_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Reason Label"
+          },
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "integer"
+          },
+          "ended_at": {
+            "format": "date-time",
+            "title": "Ended At",
+            "type": "string"
+          },
+          "hit_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Hit Seqs",
+            "type": "array"
+          },
+          "level_match": {
+            "items": {
+              "type": "boolean"
+            },
+            "title": "Level Match",
+            "type": "array"
+          },
+          "operator_login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Login"
+          },
+          "operator_node_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Node Id"
+          },
+          "operator_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operator Path",
+            "type": "array"
+          },
+          "processing_status": {
+            "title": "Processing Status",
+            "type": "string"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "product_source": {
+            "default": "unknown",
+            "title": "Product Source",
+            "type": "string"
+          },
+          "project_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Title"
+          },
+          "role_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Method"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "segment_source": {
+            "default": "unknown",
+            "title": "Segment Source",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentModel"
+            },
+            "title": "Segments",
+            "type": "array"
+          },
+          "sentiment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentiment"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CallSource",
+            "default": "ncc"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "call_id",
+          "session_id",
+          "started_at",
+          "ended_at",
+          "duration_s",
+          "direction",
+          "audio_status",
+          "processing_status",
+          "analysis_status"
+        ],
+        "title": "CallResponse",
+        "type": "object"
+      },
+      "CallSource": {
+        "description": "Откуда звонок: входящие NCC или исходящие ШПД с ВАТС Телфина (фича 14).\n\nКолонка у звонка, а не догадка по `session_id`: по источнику разделены\nотчёты (S-35), и воркер выбирает по нему, откуда качать запись.",
+        "enum": [
+          "ncc",
+          "telphin"
+        ],
+        "title": "CallSource",
+        "type": "string"
+      },
+      "ClassificationNode": {
+        "description": "Узел классификатора, который в периоде встречается, — вариант фильтра отчёта.",
+        "properties": {
+          "ai_calls": {
+            "default": 0,
+            "title": "Ai Calls",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "operator_calls": {
+            "default": 0,
+            "title": "Operator Calls",
+            "type": "integer"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "level",
+          "label",
+          "sort_order"
+        ],
+        "title": "ClassificationNode",
+        "type": "object"
+      },
+      "ClassificationResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClassificationNode"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ClassificationResponse",
+        "type": "object"
+      },
+      "ClassifierAdminResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClassifierNodeRow"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ClassifierAdminResponse",
+        "type": "object"
+      },
+      "ClassifierCount": {
+        "description": "Узел классификатора и сколько звонков в его ветке (SP-310).",
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "node_id": {
+            "format": "uuid",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Path",
+            "type": "array"
+          }
+        },
+        "required": [
+          "node_id",
+          "calls"
+        ],
+        "title": "ClassifierCount",
+        "type": "object"
+      },
+      "ClassifierNodePatch": {
+        "properties": {
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_active"
+        ],
+        "title": "ClassifierNodePatch",
+        "type": "object"
+      },
+      "ClassifierNodeRow": {
+        "description": "Узел классификатора обращений (SP-310).",
+        "properties": {
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "operator_calls": {
+            "default": 0,
+            "title": "Operator Calls",
+            "type": "integer"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ClassifierSource"
+          }
+        },
+        "required": [
+          "id",
+          "level",
+          "label",
+          "source",
+          "sort_order",
+          "is_active",
+          "first_seen_at"
+        ],
+        "title": "ClassifierNodeRow",
+        "type": "object"
+      },
+      "ClassifierOption": {
+        "description": "Узел классификатора для фильтра «Классификация» — плоско, со ссылкой на родителя.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "level",
+          "label",
+          "sort_order",
+          "is_active"
+        ],
+        "title": "ClassifierOption",
+        "type": "object"
+      },
+      "ClassifierResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClassifierOption"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ClassifierResponse",
+        "type": "object"
+      },
+      "ClassifierSource": {
+        "description": "Откуда узел классификатора обращений пришёл впервые (SP-310).\n\nУзел файла — справочник владельца `Тематики (финал) вариант 2`. Узел NCC —\nпуть, который поставил оператор, а в файле его не было: такие приём\nдобавляет сам (решение S-22), а администратор видит разницу и выключает\nлишнее.",
+        "enum": [
+          "file",
+          "ncc"
+        ],
+        "title": "ClassifierSource",
+        "type": "string"
+      },
+      "DashboardBucket": {
+        "description": "Столбец графика: день, неделя или месяц в пределах периода.",
+        "properties": {
+          "by_theme": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "By Theme",
+            "type": "array"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "negative_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Share"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "calls"
+        ],
+        "title": "DashboardBucket",
+        "type": "object"
+      },
+      "DashboardPeak": {
+        "description": "Неделя с наибольшим числом обращений.",
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "calls"
+        ],
+        "title": "DashboardPeak",
+        "type": "object"
+      },
+      "DashboardResponse": {
+        "description": "Обращения по темам за период: столбцы по времени и числа выбранной темы.",
+        "properties": {
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardBucket"
+            },
+            "title": "Buckets",
+            "type": "array"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "first_day": {
+            "format": "date",
+            "title": "First Day",
+            "type": "string"
+          },
+          "grain": {
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Grain",
+            "type": "string"
+          },
+          "last_day": {
+            "format": "date",
+            "title": "Last Day",
+            "type": "string"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/DashboardSelection"
+          },
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardTheme"
+            },
+            "title": "Themes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "first_day",
+          "last_day",
+          "grain",
+          "calls",
+          "selection"
+        ],
+        "title": "DashboardResponse",
+        "type": "object"
+      },
+      "DashboardSelection": {
+        "description": "Числа выбранной темы — или всех тем, если тема не выбрана.",
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "negative_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Share"
+          },
+          "peak": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DashboardPeak"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subtopics": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardSubtopic"
+            },
+            "title": "Subtopics",
+            "type": "array"
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme"
+          }
+        },
+        "required": [
+          "calls"
+        ],
+        "title": "DashboardSelection",
+        "type": "object"
+      },
+      "DashboardSubtopic": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "calls",
+          "share"
+        ],
+        "title": "DashboardSubtopic",
+        "type": "object"
+      },
+      "DashboardTheme": {
+        "description": "Тема на графике: уровень темы классификатора, сложенный по всем веткам.",
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "negative_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Share"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "calls",
+          "share"
+        ],
+        "title": "DashboardTheme",
+        "type": "object"
+      },
+      "DependencyRow": {
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reachable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reachable"
+          }
+        },
+        "required": [
+          "name",
+          "configured"
+        ],
+        "title": "DependencyRow",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "JobKind": {
+        "description": "Этапы конвейера. Порядок здесь — это порядок выполнения.",
+        "enum": [
+          "ingest",
+          "transcribe",
+          "analyze"
+        ],
+        "title": "JobKind",
+        "type": "string"
+      },
+      "JobLane": {
+        "description": "Полосы обработки.\n\nРазделение существует ради одного: бэкфилл на два месяца истории не должен\nвытеснять пакет за прошедшие сутки, который обязан быть готов к утру.\nПриоритет задаётся числом в задании, полоса — тем, какие задания воркер\nвообще берёт.",
+        "enum": [
+          "daily",
+          "backfill"
+        ],
+        "title": "JobLane",
+        "type": "string"
+      },
+      "JobRow": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lane": {
+            "title": "Lane",
+            "type": "string"
+          },
+          "last_error_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error At"
+          },
+          "last_error_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Class"
+          },
+          "max_attempts": {
+            "title": "Max Attempts",
+            "type": "integer"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "call_id",
+          "session_id",
+          "kind",
+          "lane",
+          "status",
+          "attempts",
+          "max_attempts",
+          "created_at"
+        ],
+        "title": "JobRow",
+        "type": "object"
+      },
+      "JobStatus": {
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed",
+          "dead"
+        ],
+        "title": "JobStatus",
+        "type": "string"
+      },
+      "JobsResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "title": "JobsResponse",
+        "type": "object"
+      },
+      "LaneRow": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "lane": {
+            "title": "Lane",
+            "type": "string"
+          },
+          "oldest_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Seconds"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lane",
+          "status",
+          "count"
+        ],
+        "title": "LaneRow",
+        "type": "object"
+      },
+      "MeResponse": {
+        "properties": {
+          "auth_mode": {
+            "title": "Auth Mode",
+            "type": "string"
+          },
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "required": [
+          "sub",
+          "auth_mode"
+        ],
+        "title": "MeResponse",
+        "type": "object"
+      },
+      "OptionModel": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "OptionModel",
+        "type": "object"
+      },
+      "OptionsResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OptionModel"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "OptionsResponse",
+        "type": "object"
+      },
+      "PipelineResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "dead_total": {
+            "default": 0,
+            "title": "Dead Total",
+            "type": "integer"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyRow"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "errors_by_class": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Errors By Class",
+            "type": "object"
+          },
+          "failed_last_24h": {
+            "default": 0,
+            "title": "Failed Last 24H",
+            "type": "integer"
+          },
+          "lanes": {
+            "items": {
+              "$ref": "#/components/schemas/LaneRow"
+            },
+            "title": "Lanes",
+            "type": "array"
+          }
+        },
+        "title": "PipelineResponse",
+        "type": "object"
+      },
+      "Product": {
+        "description": "О чём звонок: линейка продукта.\n\nВторой уровень справочника тематик. Как и сегмент, приходит из проекта NCC,\nкогда тот сопоставлен, и выводится из разговора, когда нет.",
+        "enum": [
+          "wallet",
+          "mobile",
+          "broadband"
+        ],
+        "title": "Product",
+        "type": "string"
+      },
+      "ProjectPatch": {
+        "description": "Что администратор может менять у очереди NCC.\n\n`None` означает «не трогать», а не «очистить»: половина полей формы приходит\nнезаполненной, и трактовать это как стирание значило бы терять сопоставление\nпри каждой правке названия.",
+        "properties": {
+          "clear_product": {
+            "default": false,
+            "title": "Clear Product",
+            "type": "boolean"
+          },
+          "clear_segment": {
+            "default": false,
+            "title": "Clear Segment",
+            "type": "boolean"
+          },
+          "ingest_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Enabled"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Product"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Segment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "ProjectPatch",
+        "type": "object"
+      },
+      "ProjectRow": {
+        "properties": {
+          "calls": {
+            "default": 0,
+            "title": "Calls",
+            "type": "integer"
+          },
+          "data_channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Channel"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingest_enabled": {
+            "title": "Ingest Enabled",
+            "type": "boolean"
+          },
+          "last_call_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Call At"
+          },
+          "ncc_uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ncc Uuid"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "source_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Key"
+          },
+          "synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Synced At"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "direction",
+          "ingest_enabled"
+        ],
+        "title": "ProjectRow",
+        "type": "object"
+      },
+      "ProjectsAdminResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectRow"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "ProjectsAdminResponse",
+        "type": "object"
+      },
+      "QualityBuckets": {
+        "description": "Звонки по скрипту, разложенные по баллу.\n\nПороги — из макета: от 85 — хорошие, от 70 — средние, ниже — плохие. Сумма\nтрёх равна числу звонков по скрипту.",
+        "properties": {
+          "fair": {
+            "title": "Fair",
+            "type": "integer"
+          },
+          "good": {
+            "title": "Good",
+            "type": "integer"
+          },
+          "poor": {
+            "title": "Poor",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "good",
+          "fair",
+          "poor"
+        ],
+        "title": "QualityBuckets",
+        "type": "object"
+      },
+      "QualityCallItem": {
+        "description": "Запись звонка с оценкой или состоянием её получения.\n\n`failed_stages` — подписи этапов, которые в звонке наступали и не\nзасчитаны: по ним контролёр решает, какой звонок открыть первым.\n`stages` — те же этапы в порядке скрипта, для полоски в строке.\n\nУ звонка вне скрипта (`script_applies` ложно) баллов и этапов нет, а в\n`summary` — причина, по которой модель его не оценила.",
+        "properties": {
+          "all_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Passed"
+          },
+          "bucket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bucket"
+          },
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "integer"
+          },
+          "evaluation_status": {
+            "default": "evaluated",
+            "enum": [
+              "evaluated",
+              "failed",
+              "pending",
+              "unavailable"
+            ],
+            "title": "Evaluation Status",
+            "type": "string"
+          },
+          "failed_stages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failed Stages",
+            "type": "array"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "operator_login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Login"
+          },
+          "operator_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Name"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "outcome_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Label"
+          },
+          "passed_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passed Count"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "script_applies": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Script Applies"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "stage_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Count"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/QualityCallStage"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "violation": {
+            "title": "Violation",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "call_id",
+          "session_id",
+          "started_at",
+          "duration_s",
+          "script_applies",
+          "all_passed",
+          "violation"
+        ],
+        "title": "QualityCallItem",
+        "type": "object"
+      },
+      "QualityCallStage": {
+        "description": "Этап в строке списка: был ли нужен и засчитан ли. Подписи — в сводке.",
+        "properties": {
+          "applicable": {
+            "title": "Applicable",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "applicable",
+          "passed"
+        ],
+        "title": "QualityCallStage",
+        "type": "object"
+      },
+      "QualityCallsResponse": {
+        "description": "Все записи периода; `total` — сколько их всего с учётом фильтров.",
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QualityCallItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "title": "QualityCallsResponse",
+        "type": "object"
+      },
+      "QualityObjectionModel": {
+        "description": "Возражение или вопрос клиента и отработал ли его оператор.",
+        "properties": {
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "handled": {
+            "title": "Handled",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "handled"
+        ],
+        "title": "QualityObjectionModel",
+        "type": "object"
+      },
+      "QualityObjectionShare": {
+        "description": "Тип возражения за период. `share` — доля отработанных, от 0 до 1.",
+        "properties": {
+          "handled": {
+            "title": "Handled",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "raised": {
+            "title": "Raised",
+            "type": "integer"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "raised",
+          "handled",
+          "share"
+        ],
+        "title": "QualityObjectionShare",
+        "type": "object"
+      },
+      "QualityOperatorScore": {
+        "description": "Сотрудник за период.\n\n`operator_id` пуст у звонков без оператора — так приходят записи из\nлокальной выгрузки, где оператора источник не знает.",
+        "properties": {
+          "average_score": {
+            "title": "Average Score",
+            "type": "number"
+          },
+          "buckets": {
+            "$ref": "#/components/schemas/QualityBuckets"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "fully_correct": {
+            "title": "Fully Correct",
+            "type": "integer"
+          },
+          "fully_correct_share": {
+            "title": "Fully Correct Share",
+            "type": "number"
+          },
+          "login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login"
+          },
+          "operator_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Id"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/QualityOperatorStage"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "violations": {
+            "title": "Violations",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calls",
+          "average_score",
+          "fully_correct",
+          "fully_correct_share",
+          "buckets",
+          "violations"
+        ],
+        "title": "QualityOperatorScore",
+        "type": "object"
+      },
+      "QualityOperatorStage": {
+        "description": "Этап у одного сотрудника: сколько раз был нужен и сколько раз не выполнен.",
+        "properties": {
+          "applicable": {
+            "title": "Applicable",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "applicable",
+          "failed"
+        ],
+        "title": "QualityOperatorStage",
+        "type": "object"
+      },
+      "QualityOutcomeShare": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "calls",
+          "share"
+        ],
+        "title": "QualityOutcomeShare",
+        "type": "object"
+      },
+      "QualityStageModel": {
+        "description": "Вердикт по этапу скрипта: 1 или 0, как у контролёра.\n\nНеприменимый этап засчитан, `passed` у него `true`: правило заказчика из\nмакета. `evidence` — номера реплик карточки, на которых основан вывод.",
+        "properties": {
+          "applicable": {
+            "title": "Applicable",
+            "type": "boolean"
+          },
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "mandatory": {
+            "title": "Mandatory",
+            "type": "boolean"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "mandatory",
+          "applicable",
+          "passed"
+        ],
+        "title": "QualityStageModel",
+        "type": "object"
+      },
+      "QualityStageShare": {
+        "description": "Этап за период. `share` — доля звонков, где этап засчитан, от 0 до 1.\n\nЗасчитан — выполнен или не понадобился (`passed`). Сколько раз этап был нужен\nи не выполнен — `failed`; выполнен он в `applicable - failed` звонках.",
+        "properties": {
+          "applicable": {
+            "title": "Applicable",
+            "type": "integer"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "mandatory": {
+            "title": "Mandatory",
+            "type": "boolean"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "mandatory",
+          "calls",
+          "applicable",
+          "passed",
+          "failed",
+          "share"
+        ],
+        "title": "QualityStageShare",
+        "type": "object"
+      },
+      "QualitySummaryResponse": {
+        "description": "Сводка оценок за период — вкладка «Оценка качества».\n\nВсё считается по звонкам, к которым скрипт применим (`calls`); `evaluated` —\nвсе оценённые звонки периода вместе с неприменимыми.",
+        "properties": {
+          "average_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Score"
+          },
+          "buckets": {
+            "$ref": "#/components/schemas/QualityBuckets"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "integer"
+          },
+          "failed": {
+            "default": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "fully_correct": {
+            "title": "Fully Correct",
+            "type": "integer"
+          },
+          "fully_correct_share": {
+            "title": "Fully Correct Share",
+            "type": "number"
+          },
+          "objections": {
+            "items": {
+              "$ref": "#/components/schemas/QualityObjectionShare"
+            },
+            "title": "Objections",
+            "type": "array"
+          },
+          "operators": {
+            "items": {
+              "$ref": "#/components/schemas/QualityOperatorScore"
+            },
+            "title": "Operators",
+            "type": "array"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/QualityOutcomeShare"
+            },
+            "title": "Outcomes",
+            "type": "array"
+          },
+          "pending": {
+            "default": 0,
+            "title": "Pending",
+            "type": "integer"
+          },
+          "script_version": {
+            "title": "Script Version",
+            "type": "string"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/QualityStageShare"
+            },
+            "title": "Stages",
+            "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "unavailable": {
+            "default": 0,
+            "title": "Unavailable",
+            "type": "integer"
+          },
+          "violations": {
+            "title": "Violations",
+            "type": "integer"
+          },
+          "weeks": {
+            "items": {
+              "$ref": "#/components/schemas/QualityWeek"
+            },
+            "title": "Weeks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "script_version",
+          "evaluated",
+          "calls",
+          "fully_correct",
+          "fully_correct_share",
+          "buckets",
+          "violations"
+        ],
+        "title": "QualitySummaryResponse",
+        "type": "object"
+      },
+      "QualityWeek": {
+        "description": "Неделя периода; начало недели — понедельник по часам колл-центра.",
+        "properties": {
+          "average_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Score"
+          },
+          "buckets": {
+            "$ref": "#/components/schemas/QualityBuckets"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "fully_correct": {
+            "title": "Fully Correct",
+            "type": "integer"
+          },
+          "fully_correct_share": {
+            "title": "Fully Correct Share",
+            "type": "number"
+          },
+          "week_start": {
+            "format": "date",
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week_start",
+          "calls",
+          "fully_correct",
+          "fully_correct_share",
+          "buckets"
+        ],
+        "title": "QualityWeek",
+        "type": "object"
+      },
+      "QuoteModel": {
+        "properties": {
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          },
+          "start_ms": {
+            "title": "Start Ms",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "start_ms",
+          "speaker",
+          "text"
+        ],
+        "title": "QuoteModel",
+        "type": "object"
+      },
+      "SearchItemModel": {
+        "properties": {
+          "ai_node_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Node Id"
+          },
+          "ai_path": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ai Path",
+            "type": "array"
+          },
+          "audio_status": {
+            "title": "Audio Status",
+            "type": "string"
+          },
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "integer"
+          },
+          "hit_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Hit Seqs",
+            "type": "array"
+          },
+          "match_count": {
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "operator_login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator Login"
+          },
+          "processing_status": {
+            "title": "Processing Status",
+            "type": "string"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "product_source": {
+            "default": "unknown",
+            "title": "Product Source",
+            "type": "string"
+          },
+          "project_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Title"
+          },
+          "quality_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Score"
+          },
+          "quotes": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteModel"
+            },
+            "title": "Quotes",
+            "type": "array"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "segment_source": {
+            "default": "unknown",
+            "title": "Segment Source",
+            "type": "string"
+          },
+          "sentiment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentiment"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CallSource",
+            "default": "ncc"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "session_id",
+          "started_at",
+          "duration_s",
+          "match_count",
+          "audio_status",
+          "processing_status"
+        ],
+        "title": "SearchItemModel",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SearchItemModel"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "period_calls": {
+            "title": "Period Calls",
+            "type": "integer"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          },
+          "total_calls": {
+            "title": "Total Calls",
+            "type": "integer"
+          },
+          "total_matches": {
+            "title": "Total Matches",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "total_matches",
+          "total_calls",
+          "period_calls",
+          "share"
+        ],
+        "title": "SearchResponse",
+        "type": "object"
+      },
+      "Segment": {
+        "description": "Кто звонил: юридическое лицо или частное.\n\nВерхний уровень справочника тематик владельца. Темой не является — это\nсвойство клиента, а не разговора, — но фильтром нужен (решение S-21).",
+        "enum": [
+          "b2b",
+          "individual"
+        ],
+        "title": "Segment",
+        "type": "string"
+      },
+      "SegmentModel": {
+        "description": "Реплика в карточке звонка.\n\n`text` — текст расшифровки как есть.\n\nКогда карточка запрошена с `q`, найденное в этом же поле помечено\nуправляющими символами `STX`/`ETX` — теми же, что в цитатах выдачи\n(PLY-04). Отдельным полем это не сделано намеренно: два поля с текстом\nодной реплики означали бы, что однажды покажут не то, а разметку HTML\nсервер не отдаёт вовсе, чтобы её не пришлось вставлять как есть.",
+        "properties": {
+          "end_ms": {
+            "title": "End Ms",
+            "type": "integer"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          },
+          "start_ms": {
+            "title": "Start Ms",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "speaker",
+          "start_ms",
+          "end_ms",
+          "text"
+        ],
+        "title": "SegmentModel",
+        "type": "object"
+      },
+      "SettingsPatch": {
+        "properties": {
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "SettingsPatch",
+        "type": "object"
+      },
+      "SettingsResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "overridden": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Overridden",
+            "type": "array"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "title": "SettingsResponse",
+        "type": "object"
+      },
+      "StatsResponse": {
+        "description": "KPI периода (SRC-08).\n\nТри числа считаются по **всем обнаруженным** звонкам периода, а не по\nнайденным поиском: «обработано» — это про сбор, а не про запрос. Звонки при\nэтом — одного источника, `source` запроса (S-35): у вкладок NCC и Телфина\nсчётчики свои.\n\n`topics` — «Основные темы» (SRC-07): десять узлов уровня темы (4) с самыми\nбольшими ветками по классификации ИИ — в том же источнике.",
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "processed": {
+            "title": "Processed",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/ClassifierCount"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
+          "transcribed": {
+            "title": "Transcribed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "processed",
+          "transcribed",
+          "queued"
+        ],
+        "title": "StatsResponse",
+        "type": "object"
+      },
+      "UserRow": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "roles_last_seen": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles Last Seen",
+            "type": "array"
+          },
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "required": [
+          "sub",
+          "first_seen_at",
+          "last_seen_at"
+        ],
+        "title": "UserRow",
+        "type": "object"
+      },
+      "UsersResponse": {
+        "properties": {
+          "contract_version": {
+            "default": "3.0",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserRow"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "UsersResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionInfo": {
+        "additionalProperties": false,
+        "description": "The `/version` payload. Frozen: a caller may cache it for the process.",
+        "properties": {
+          "build_time": {
+            "title": "Build Time",
+            "type": "string"
+          },
+          "commit": {
+            "title": "Commit",
+            "type": "string"
+          },
+          "contracts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Contracts",
+            "type": "object"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "commit",
+          "build_time",
+          "contracts"
+        ],
+        "title": "VersionInfo",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Aicistent Speech Analytics",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/admin/audit": {
+      "get": {
+        "description": "Кто что смотрел и кто что менял.\n\nФильтр по типу события — главный: закрытый набор типов заведён ровно ради\nтого, чтобы этот фильтр работал.",
+        "operationId": "read_audit_api_v1_admin_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "event_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_sub",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Sub"
+            }
+          },
+          {
+            "in": "query",
+            "name": "call_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Call Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Audit"
+      }
+    },
+    "/api/v1/admin/backfill/pause": {
+      "post": {
+        "description": "Остановить разбор истории: и перечисление дат, и уже поставленные задания.\n\nОбе стороны сразу, потому что администратор имеет в виду именно это.\nОстанавливая только задания, мы получили бы видимость остановки: курсор\nпродолжал бы идти по датам, ставя новые задания, тут же откладываемые, —\nисточник опрашивают, очередь растёт, а на экране «приостановлено».\n\nЗадания не удаляются и не помечаются отказом: отложенные далеко в будущее,\nони остаются в очереди и вернутся одним `resume`. Удаление означало бы, что\nвозобновление — это заново собранная история, а не продолжение.",
+        "operationId": "pause_backfill_api_v1_admin_backfill_pause_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pause Backfill"
+      }
+    },
+    "/api/v1/admin/backfill/start": {
+      "post": {
+        "description": "Вернуть разбор истории в работу: и задания, и перечисление дат.\n\nОкно здесь не открывается. Открыть его — решение о том, на сколько месяцев\nназад идти, и принимается оно один раз, в командной строке\n(`python -m app.speech.backfill start --days N`). Кнопка, молча открывающая\nокно по умолчанию, однажды запустила бы разбор шестидесяти суток от одного\nнажатия не тем человеком.",
+        "operationId": "start_backfill_api_v1_admin_backfill_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Backfill"
+      }
+    },
+    "/api/v1/admin/calls/{call_id}/reprocess": {
+      "post": {
+        "description": "Прогнать звонок заново, начиная с указанного этапа.\n\nЗаводится **одно** задание — того этапа, с которого просили. Следующие\nпоставит воркер, закончив это: цепочка уже описана в `SPEECH_NEXT_JOB_KIND`,\nи вторая её копия здесь рано или поздно разойдётся с первой.\n\nЗавершённое задание сбрасывается на месте: уникальность `(call_id, kind)`\nдействует на все статусы. Любой активный этап запрещает переобработку.",
+        "operationId": "reprocess_call_api_v1_admin_calls__call_id__reprocess_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Call Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/JobKind",
+              "default": "transcribe"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reprocess Call"
+      }
+    },
+    "/api/v1/admin/classifier": {
+      "get": {
+        "description": "Дерево классификатора плоским списком: у каждого узла — ссылка на родителя.\n\nПлоским, а не вложенным: дерево из полутысячи узлов собирает экран, а\nвложенный ответ пришлось бы разворачивать обратно ради счёта и отбора.",
+        "operationId": "list_classifier_api_v1_admin_classifier_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifierAdminResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Classifier"
+      }
+    },
+    "/api/v1/admin/classifier/{node_id}": {
+      "patch": {
+        "description": "Выключить узел или включить обратно.\n\nВыключенный узел модели не предлагается — вместе со всей веткой под ним.\nЗвонки, которые им уже классифицированы, остаются как есть: история\nразметки не переписывается (ADM-01). Удаления нет по той же причине.",
+        "operationId": "update_classifier_node_api_v1_admin_classifier__node_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassifierNodePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifierNodeRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Classifier Node"
+      }
+    },
+    "/api/v1/admin/jobs": {
+      "get": {
+        "operationId": "list_jobs_api_v1_admin_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lane",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobLane"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lane"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs"
+      }
+    },
+    "/api/v1/admin/jobs/{job_id}/retry": {
+      "post": {
+        "description": "Вернуть в очередь задание, которое само не повторится.\n\nПовторяются только `failed` и `dead`. Взять `running` значило бы завести\nвторого исполнителя того же задания рядом с живым первым; `queued` уже\nждёт, а `done` переигрывать нечего — для этого есть переобработка.\n\nСчётчик попыток сбрасывается: администратор, нажавший «повторить», принял\nрешение, что причина устранена, и оставленный счётчик уронил бы задание\nобратно в `dead` с первой же попытки.",
+        "operationId": "retry_job_api_v1_admin_jobs__job_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Job"
+      }
+    },
+    "/api/v1/admin/pipeline": {
+      "get": {
+        "description": "Снимок очереди и состояние зависимостей.\n\nПробы идут **параллельно** и каждая со своим потолком: последовательные, с\nтаймаутом по умолчанию, они превращают открытие панели в двухминутное\nожидание ровно тогда, когда что-то сломалось.",
+        "operationId": "pipeline_api_v1_admin_pipeline_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline"
+      }
+    },
+    "/api/v1/admin/projects": {
+      "get": {
+        "operationId": "list_projects_api_v1_admin_projects_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectsAdminResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Projects"
+      }
+    },
+    "/api/v1/admin/projects/sync": {
+      "post": {
+        "description": "Подтянуть справочники из NCC: сотрудников и известные проекты.\n\nОдна ручка на оба, а не две. Администратор нажимает её, чтобы получить\nсвежие данные из NCC, а не чтобы выбрать между справочниками; разделение\nпотребовало бы от него знать, какой из них откуда берётся.\n\n**Новые проекты здесь не появляются.** Списочного запроса для проектов в\nREST API NCC нет: обновляются те, что мы уже знаем из принятых звонков.\nЭто ограничение источника, и ответ говорит о нём словами — «обновлено 0»\nна пустом справочнике иначе читается как поломка.\n\nОтказ настройки отделён от отказа NCC. Незаданный адрес или токен — это\n`503`: чинить надо развёртывание, и повторным нажатием кнопки этого не\nсделать.",
+        "operationId": "sync_directories_api_v1_admin_projects_sync_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sync Directories"
+      }
+    },
+    "/api/v1/admin/projects/{project_id}": {
+      "patch": {
+        "description": "Рубильник сбора и сопоставление очереди с сегментом и продуктом (S-21).\n\nСопоставление здесь — **факт**, а не догадка: у сопоставленной очереди\nзначение сегмента берётся из неё, и модель об этом даже не спрашивают. Из-за\nэтого правка одной строки меняет то, как будут размечены все следующие\nзвонки очереди, — и оттого пишется в журнал отдельным типом события.\n\nУже размеченные звонки не переписываются: отчёт, построенный вчера,\nсегодня не должен показывать другие числа. Для перестановки задним числом\nесть переобработка.",
+        "operationId": "update_project_api_v1_admin_projects__project_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRow"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Project"
+      }
+    },
+    "/api/v1/admin/reports/calls.xlsx": {
+      "get": {
+        "description": "Звонки периода со сводками — файлом Excel.\n\n`operator_node_id` и `ai_node_id` — ветки классификатора по классификации\nоператора и по классификации ИИ. `source` — чьи звонки (S-35): по умолчанию\nвходящие NCC, `telphin` — исходящие ШПД; в один отчёт они не смешиваются.\n\nЖурнал пишется до сборки файла и в той же транзакции, что и выборка: так же,\nкак у выгрузки списка. Выгрузка, о которой журнал не знает, хуже записи о\nфайле, который не собрался. В журнале — и сколько расшифровок ушло в файл,\nи сколько из них обрезано по пределу ячейки.",
+        "operationId": "report_calls_api_v1_admin_reports_calls_xlsx_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_node_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Node Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ai_node_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ai Node Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report Calls"
+      }
+    },
+    "/api/v1/admin/reports/classification": {
+      "get": {
+        "description": "Узлы, которые в периоде встречаются, — варианты фильтров отчёта, в порядке дерева.\n\nТолько встречающиеся: список, в котором половина вариантов даёт пустой\nотчёт, предлагает выбрать пустоту. Счёт — по ветке узла, как и отбор.",
+        "operationId": "report_classification_api_v1_admin_reports_classification_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report Classification"
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "operationId": "read_settings_api_v1_admin_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Settings"
+      },
+      "put": {
+        "description": "Записать настройки.\n\nКлюч вне объявленного набора отклоняется целиком, а не пропускается: приняв\nего, интерфейс показывал бы сохранённое значение, которого никто не читает.\n\nТип сверяется с типом умолчания. `retention_days` строкой — это срок\nхранения, который не применится, и узнать об этом можно было бы только по\nтому, что записи не удаляются.",
+        "operationId": "write_settings_api_v1_admin_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Settings"
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Кто заходил и с какими правами.\n\nИсточник правды по ролям — Keycloak; здесь последнее увиденное значение,\nчтобы администратор мог понять, с чем человек заходил, не открывая Keycloak.",
+        "operationId": "list_users_api_v1_admin_users_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Users"
+      }
+    },
+    "/api/v1/auth/callback": {
+      "get": {
+        "description": "Принять код, обменять его на токены и завести сессию.",
+        "operationId": "callback_api_v1_auth_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 4000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Callback"
+      }
+    },
+    "/api/v1/auth/login": {
+      "get": {
+        "description": "Отправить браузер на Keycloak.\n\nВ режиме `open` вход не нужен и не изображается: человек возвращается туда,\nоткуда пришёл. Притворяться, что вход состоялся, нельзя — тогда `open`\nвыглядел бы как настроенная аутентификация.",
+        "operationId": "login_api_v1_auth_login_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "next",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login"
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "Погасить сессию и сказать, куда идти выходить из Keycloak.\n\nБез аутентификации намеренно: требовать для выхода живую сессию значит не\nдать выйти тому, у кого она уже протухла.\n\nОтвет — JSON с адресом выхода, а не перенаправление: выход инициирует\n`fetch`, и перенаправление он бы проглотил молча, оставив человека на\nстранице, которая выглядит как рабочая.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout"
+      }
+    },
+    "/api/v1/calls/{call_id}": {
+      "get": {
+        "description": "Карточка звонка с репликами.\n\n`q` не фильтрует реплики, а подсвечивает: пользователь пришёл сюда из\nвыдачи и должен видеть весь разговор, а не только совпавшие места.\n\nПараметра `source` здесь нет намеренно (S-35): звонок открывается по своему\nидентификатору, чей бы он ни был, а источник приходит полем ответа.",
+        "operationId": "call_card_api_v1_calls__call_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Call Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 500,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Call Card"
+      }
+    },
+    "/api/v1/calls/{call_id}/audio": {
+      "get": {
+        "description": "Отдать запись потоком, транслируя `Range` (PLY-02).\n\nДиапазон передаётся хранилищу как есть и возвращается вместе с его\n`Content-Range`: разбирать его самим значило бы завести второй разборщик\nрядом с тем, что уже есть у S3, и однажды разойтись с ним на границе.\n\nПрослушивание разрешено с правом поиска. `download=1` дополнительно требует\n`download_audio` до чтения метаданных или обращения к хранилищу. Это право\nна явную загрузку, а не технический запрет сохранить поток проигрывателя.\n\nТег `<audio>` запрашивает `src` сам и заголовка `Authorization` к нему не\nдобавляет, поэтому на этом — и только на этом — пути токен принимается ещё и\nиз куки `speech_audio`: её подставляет `AudioCookieMiddleware`. Кука несёт\n**тот же токен**, проверка роли остаётся той же; это способ доставки, а не\nвторой путь в обход авторизации (SP-808).",
+        "operationId": "call_audio_api_v1_calls__call_id__audio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Call Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Download",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Call Audio"
+      }
+    },
+    "/api/v1/calls/{call_id}/quality": {
+      "get": {
+        "description": "Оценка звонка по текущей редакции скрипта.\n\n`404 not_evaluated` — оценки нет. `404 not_applicable` — звонок другого\nисточника: по скрипту он не оценивается и оценён не будет, поэтому карточка\nне должна обещать оценку.",
+        "operationId": "call_quality_api_v1_calls__call_id__quality_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallQualityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Call Quality"
+      }
+    },
+    "/api/v1/classifier": {
+      "get": {
+        "description": "Дерево классификатора для фильтра «Классификация» (SP-310) — плоско.\n\nС выключенными узлами: у них есть звонки, и ссылка с таким узлом должна\nпоказать, чем отфильтрована выдача. Предлагать ли их для нового выбора,\nрешает экран.",
+        "operationId": "classifier_api_v1_classifier_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifierResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Classifier"
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "description": "Обращения NCC по темам за период: столбцы по времени, негатив, выбранная тема.\n\n`grain` — корзина столбцов: день, неделя или месяц. Без него сервер\nвыбирает сам по длине периода (до 10 дней — дни, до 120 — недели, дальше —\nмесяцы); названная корзина, которая дала бы больше ста столбцов, заменяется\nавтоматической. Какая применена, сказано в `grain` ответа.\n\nНа графике — шесть самых частых тем периода и «Прочее». `theme` — ключ\nтемы из `themes` ответа: по ней считается `selection` — число обращений,\nдоля негатива, изменение ко второй половине периода, пиковая неделя и\nподтемы. Без `theme` — по всем темам. Столбцы от выбора не зависят.\n\nПериод — как у поиска: без границ — последние тридцать дней, `period=all`\n— всё время.",
+        "operationId": "dashboard_api_v1_dashboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "grain",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Grain"
+            }
+          },
+          {
+            "in": "query",
+            "name": "theme",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Theme"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dashboard"
+      }
+    },
+    "/api/v1/dashboard.xlsx": {
+      "get": {
+        "description": "Числа дашборда файлом Excel: темы по времени, темы за период и подтемы.\n\nСтолбцы — те же, что на экране, с той же корзиной. Темы и подтемы — все и по\nотдельности, без «Прочего»: в файле место есть.\n\n`403` — нет права `export`: дашборд человек видит, а файл наружу не выносит.\nЖурнал пишется до сборки файла, как у остальных выгрузок.",
+        "operationId": "dashboard_file_api_v1_dashboard_xlsx_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "grain",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Grain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dashboard File"
+      }
+    },
+    "/api/v1/export": {
+      "get": {
+        "description": "Выгрузить список результатов в CSV (SRC-09).\n\nВыгружается **тот же** поиск, что видит пользователь, а не отдельный запрос:\nвыгрузка, собранная своим SQL, однажды разойдётся с экраном, и спорить будут\nс ней, а не с экраном. Поэтому и `source` здесь тот же, с тем же умолчанием\n`ncc` (S-35): без него выгрузка со вкладки Телфина принесла бы звонки NCC.\n\nЦитата в файл идёт та же, что на экране. Выгрузка не расширяет доступ: у\nнеё своё право, но не свои данные.",
+        "operationId": "export_csv_api_v1_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 500,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "node_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "segment",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Segment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Segment"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Product"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Csv"
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "description": "Кто я и что мне позволено.\n\nЗаодно единственное место, где обновляется `speech_users`: администратору\nнужно видеть, кто заходил и с какими правами, не открывая Keycloak.",
+        "operationId": "me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me"
+      }
+    },
+    "/api/v1/operators": {
+      "get": {
+        "description": "Значения фильтра «оператор» — только те, у кого есть звонки.\n\nИначе список растёт бывшими сотрудниками, и выбрать из него можно то, что\nничего не найдёт. По той же причине — только звонки источника `source`\n(S-35): оператор Телфина во вкладке NCC — тоже выбор пустоты.",
+        "operationId": "operators_api_v1_operators_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Operators"
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "description": "Значения фильтра «очередь» — проекты со звонками источника `source` (S-35).\n\nПроект Телфина лежит в той же таблице проектов, что и очереди NCC, и без\nусловия на источник попадал бы в список вкладки NCC. Во вкладке Телфина\nэкран зовёт этот фильтр «проект»: у исходящих звонков очереди нет.",
+        "operationId": "projects_api_v1_projects_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Projects"
+      }
+    },
+    "/api/v1/quality/calls": {
+      "get": {
+        "description": "Записи периода из источника скрипта с фильтрами и порядком.\n\nПо умолчанию видны также ошибки оценки, ожидающие её звонки и звонки, у\nкоторых расшифровки уже не будет (`unavailable`).\n`evaluation_status` отбирает состояние оценки; `applies=false` — звонки\nвне скрипта с причиной в `summary`. Баллы и этапы относятся только к\nактуальным успешным оценкам.\n\n`bucket` — разряд по баллу, `outcome` — итог звонка, `violations` — не\nвыполнено обязательное условие. `stage` — этап, а `stage_state` — каким он\nбыл в звонке: не выполнен (так по умолчанию — ищут обычно ошибки), выполнен\nили не понадобился. По второму находят звонки, на которые стоит равняться.\nНеизвестный этап или итог — `422`, а не пустой список: опечатка в фильтре\nне должна выглядеть как «таких звонков нет».",
+        "operationId": "quality_calls_api_v1_quality_calls_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unassigned",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unassigned",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "applies",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Applies"
+            }
+          },
+          {
+            "in": "query",
+            "name": "evaluation_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluated",
+                    "failed",
+                    "pending",
+                    "unavailable"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Evaluation Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bucket",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "good",
+                    "fair",
+                    "poor"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bucket"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stage"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stage_state",
+            "required": false,
+            "schema": {
+              "default": "failed",
+              "enum": [
+                "failed",
+                "done",
+                "skipped"
+              ],
+              "title": "Stage State",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "violations",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Violations",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "enum": [
+                "newest",
+                "worst",
+                "best"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityCallsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quality Calls"
+      }
+    },
+    "/api/v1/quality/review.xlsx": {
+      "get": {
+        "description": "Файл Excel для сверки оценок контролёром: случайные оценённые звонки охвата.\n\nОхват — тот же, что у сводки: период и сотрудник. Каждый запрос — новая\nслучайная выборка. В файле оценка модели по каждому этапу, её пояснение,\nреплики-основания и полный текст разговоров; что куда\nложится — в `app.speech.quality_review`.\n\n`403` — нет права `export`: оценки человек видит, а файл наружу не выносит.\n`404 nothing_to_review` — в охвате нет ни одного звонка, оценённого по\nскрипту: пустой файл выглядел бы как сбой выгрузки.\n\nЖурнал пишется до сборки файла и в той же транзакции, что и выборка, — как\nу отчёта по звонкам: выгрузка, о которой журнал не знает, хуже записи о\nфайле, который не собрался.",
+        "operationId": "quality_review_file_api_v1_quality_review_xlsx_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unassigned",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unassigned",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quality Review File"
+      }
+    },
+    "/api/v1/quality/summary": {
+      "get": {
+        "description": "Сводка за период: разряды по баллу, этапы, возражения, итоги, сотрудники, недели.\n\nСчитаются звонки того источника, для которого написан скрипт; остальные в\nсводку не входят ни оценёнными, ни ожидающими.\n\nПериод — как у поиска: без границ — последние тридцать дней, `period=all` —\nвсё время. Этапы, возражения и итоги перечислены в порядке скрипта, и в\nсписке есть каждый — с нулём, если в периоде его не было: экран не должен\nменять раскладку от того, какие пункты встретились.",
+        "operationId": "quality_summary_api_v1_quality_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unassigned",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unassigned",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualitySummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quality Summary"
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "description": "Выдача (SRC-01…05). `node_id` — ветка классификатора по классификации ИИ.\n\n`source` — чьи звонки (S-35), по умолчанию `ncc`; почему так — в описании\nмодуля. Доля от периода считается в том же источнике.",
+        "operationId": "search_api_v1_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 500,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "node_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "segment",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Segment"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Segment"
+            }
+          },
+          {
+            "in": "query",
+            "name": "product",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Product"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search"
+      }
+    },
+    "/api/v1/session/audio": {
+      "delete": {
+        "description": "Убрать куку при выходе.\n\nБез права: удалять собственную куку может кто угодно, а требовать для\nвыхода действующий токен значит не дать выйти тому, у кого он протух, —\nто есть именно тому, кому это нужнее всего.\n\n`samesite` и `httponly` повторяют выдачу, чтобы два объявления одной куки\nне расходились на ровном месте. На само гашение они не влияют: кука\nопознаётся тройкой имя+домен+путь, и это проверено прогоном через клиент —\n`tests/test_speech_audio_cookie.py::test_the_cookie_actually_leaves_the_jar`.\n\n`Secure` здесь НЕ повторяется, и это не недосмотр: по RFC 6265bis куку с\n`Secure`, пришедшую с незащищённого источника, браузер отбрасывает.\nПоставив его, мы сделали бы гашение невыполнимым ровно там, где оно нужнее\nвсего, — на отладочном входе по `http` мимо корпоративного прокси.",
+        "operationId": "revoke_audio_ticket_api_v1_session_audio_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioTicketResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke Audio Ticket"
+      },
+      "post": {
+        "description": "Выдать куку, с которой тег `<audio>` дотянется до записи (SP-808).\n\nСуществует ровно потому, что браузер запрашивает `src` сам и заголовков к\nнему не добавляет. В куку кладётся **тот самый токен**, который пришёл в\nзаголовке: проверка роли на отдаче аудио остаётся прежней, а значит доступ\nне расширяется. Этим она отличается от подписанной ссылки, которая\nдействует сама по себе, кем бы ни была открыта.\n\nЧетыре ограничения, и каждое закрывает свой способ ею воспользоваться:\n\n* `HttpOnly` — скрипт на странице её не прочитает, то есть XSS не вынесет\n  токен наружу тем же путём;\n* `SameSite=strict` — браузер не отправит её по запросу с чужого сайта,\n  поэтому `<audio src=\"…\">` на постороннем ресурсе не сработает;\n* `Path=/api/v1/calls` — даже утекшая, она не даст ни поиска, ни админки,\n  ни раскрытия масок: браузер её туда просто не пошлёт;\n* короткий срок и никакого самопродления — фронт перевыпускает её вместе с\n  обновлением токена.\n\n`Secure` ставится по объявленному окружению (`app/core/cookies.py`), а не\nпо схеме запроса. До 2026-09-21 здесь стояло `request.url.scheme ==\n\"https\"`, и за обратным прокси эта кука не получала `Secure` НИКОГДА:\n`X-Forwarded-Proto` не читался вовсе, а до сервиса запрос всегда доходит\nпо `http`. При умолчании `SESSION_COOKIE_SECURE=auto` послабление осталось\nтолько для `APP_ENV=local`: на `http://127.0.0.1:3000` браузер куку с\n`Secure` молча выбросит, и разработка сломалась бы без единого сообщения.\nСнять флаг вне local можно только объявив `SESSION_COOKIE_SECURE=never`, и\nв продуктиве с этим значением процесс не стартует вовсе.",
+        "operationId": "issue_audio_ticket_api_v1_session_audio_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioTicketResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Audio Ticket"
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "description": "KPI периода и десять главных тем (SRC-07, SRC-08).\n\n«Расшифровано» — звонки, у которых есть расшифровка: с этого момента текст\nнаходится поиском и открывается в карточке.\n\n`source` — тот же, что у выдачи (S-35): KPI над списком Телфина, посчитанные\nпо NCC, описывали бы не тот список.",
+        "operationId": "stats_api_v1_stats_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/CallSource",
+              "default": "ncc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stats"
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Процесс жив. Ничего не проверяет и не должен.\n\nЖивость и готовность разведены намеренно: контейнер, который перезапускают\nиз-за недоступной базы, не чинится перезапуском, а лишь теряет то, что успел\nзахватить.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Сервис готов обслуживать запросы.\n\nПроверяются две вещи: соединение с базой и то, что в ней применена схема,\nкоторую ожидает этот код. Достижимая, но устаревшая база — самый неприятный\nиз отказов: процесс выглядит здоровым и падает на каждом запросе. Поэтому\nрасхождение схемы даёт `503` с отдельной причиной, а не общий отказ.\n\nОтказ закрытый: любая ошибка базы — `503`, а не `500`. Разница видна\nбалансировщику и compose, которые обязаны отличать «ещё не готов» от\n«сломан».",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Ready Ready Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready"
+      }
+    },
+    "/version": {
+      "get": {
+        "description": "Какая сборка отвечает и какой контракт она говорит.\n\n`/health` у старого и нового образа одинаков и потому не доказывает, что\nвыкатка состоялась. Проверка после `update-app-images.sh` смотрит сюда.",
+        "operationId": "service_version_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Service Version"
+      }
+    }
+  }
+}
