@@ -17,6 +17,8 @@
   `src/domain`, `src/setting` и `src/di`.
 - Пакет `app` удалён. HTTP запускаем фабрикой `src.di.http:create_app --factory`,
   CLI — модулями `src.presentation.cli.*`. Старые обёртки не восстанавливаем.
+- YAML-сценарии Dify и их проверки принадлежат `speech-worker`. Копию
+  `dify/` в бэкенде не восстанавливаем, файлы воркера в тестах не читаем.
 - Presentation преобразует HTTP-ввод в DTO и вызывает application. Application
   применяет domain и обращается к внешним операциям через порты.
 - Infrastructure реализует порты, DI собирает зависимости. Domain независим
@@ -52,3 +54,5 @@
 [развёртывание](docs/deployment.md).
 Точки входа и запуск после удаления `app`:
 [архитектура](docs/architecture.md#точки-запуска-и-совместимость).
+Владение YAML-сценариями Dify и источник для локальной заглушки:
+[границы сервисов](docs/service-boundaries.md#сценарии-dify).

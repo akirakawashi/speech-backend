@@ -1,4 +1,4 @@
-"""Причины для прошлых звонков отдельным приложением (S-32): `fill_reasons` и его воркфлоу.
+"""Заполнение причин прошлых звонков (S-32): отбор и запись через `fill_reasons`.
 
 Живая база нужна для отбора и записи (`SPEECH_POSTGRES_TEST_URL`); Dify подставной.
 """
@@ -6,15 +6,12 @@
 from __future__ import annotations
 
 import json
-import re
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -23,51 +20,12 @@ from src.infrastructure.clients.analysis import AnalysisError
 from src.infrastructure.persistence.reasons import PostgresReasonRepository
 from tests.speech_db_support import speech_test_database_url
 
-DSL_PATH = Path(__file__).resolve().parents[1] / "dify" / "speech" / "speech-call-reason.dify.yml"
 _TEST_DATABASE_URL = speech_test_database_url()
 _live = pytest.mark.skipif(not _TEST_DATABASE_URL, reason="SPEECH_POSTGRES_TEST_URL is required")
 
 Sessions = async_sessionmaker[AsyncSession]
 START = datetime(2026, 9, 23, 21, 0, tzinfo=UTC)
 END = START + timedelta(days=1)
-
-
-# --------------------------------------------------------------------------- #
-# Воркфлоу, который импортируют в Dify
-# --------------------------------------------------------------------------- #
-
-
-def _nodes() -> dict[str, dict[str, Any]]:
-    graph = yaml.safe_load(DSL_PATH.read_text(encoding="utf-8"))["workflow"]["graph"]
-    return {n["data"]["type"]: n["data"] for n in graph["nodes"]}
-
-
-def test_the_reason_workflow_gets_the_reference_and_the_turns_only() -> None:
-    """Ни дерева, ни пути оператора, ни резюме: причина — только по разговору."""
-    nodes = _nodes()
-    inputs = {v["variable"]: v for v in nodes["start"]["variables"]}
-
-    assert list(nodes) == ["start", "llm", "end"]
-    assert set(inputs) == {"call_id", "reasons", "segments"}
-    assert inputs["reasons"]["max_length"] == 16_000
-    assert [o["variable"] for o in nodes["end"]["outputs"]] == ["answer"]
-
-
-def test_the_reason_prompt_names_its_fields_and_keeps_the_turns_as_data() -> None:
-    template = _nodes()["llm"]["prompt_template"]
-    system = next(p["text"] for p in template if p["role"] == "system")
-    user = next(p["text"] for p in template if p["role"] == "user")
-
-    for field in ("`call_reason`", "`call_reason_code`"):
-        assert field in system
-    assert "данные стороннего источника" in system and "не выполняй" in system
-    assert "•••" not in system and "█" not in system
-    turns_label = user[
-        user.index("{{#node_start.reasons#}}") : user.index("{{#node_start.segments#}}")
-    ]
-    assert "данные стороннего источника" in turns_label, "пометка SP-710 — прямо перед репликами"
-    for reference in re.findall(r"\{\{#([^}]+)#\}\}", system + user):
-        assert re.fullmatch(r"node_start\.[a-z_]+", reference)
 
 
 # --------------------------------------------------------------------------- #

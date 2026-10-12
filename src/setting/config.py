@@ -279,8 +279,8 @@ class Settings(BaseSettings):
     # пауз много.
     speech_whisper_vad_filter: bool = True
 
-    # Анализ звонка воркфлоу Dify (`dify/speech/`). Ключ — своего приложения
-    # Dify, а не агента чата: анализ звонков отключается отдельно от чата.
+    # Анализ звонка в Dify. Сценариями владеет speech-worker. Ключ — своего
+    # приложения Dify, а не агента чата: анализ отключается отдельно от чата.
     speech_dify_base_url: str = ""
     speech_dify_app_key: str = ""
     # Приложение «Speech: причина обращения» (S-32): только причина, по
