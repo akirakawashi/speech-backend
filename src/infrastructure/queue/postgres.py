@@ -136,7 +136,8 @@ _RESET_JOB_SQL = text(
            priority = CASE CAST(:lane AS text) WHEN 'daily' THEN 0 ELSE 100 END,
            attempts = 0, max_attempts = :max_attempts,
            run_after = COALESCE(:run_after, now()), lease_seconds = :lease_seconds,
-           payload = CAST(:payload AS jsonb) - '_claim_token' - '_transcription_receipt',
+           payload = CAST(:payload AS jsonb) - '_claim_token' - '_transcription_receipt'
+                     - '_transcription_delivery',
            locked_by = NULL, locked_at = NULL, started_at = NULL, finished_at = NULL,
            last_error_class = NULL, last_error_at = NULL
      WHERE id = :job_id AND status IN ('done', 'failed', 'dead')
@@ -198,7 +199,10 @@ _FAIL_SQL = text(
            locked_by = NULL,
            locked_at = NULL,
            last_error_class = :error_class,
-           payload = payload - '_claim_token' - '_transcription_receipt',
+           payload = CASE WHEN :terminal OR attempts >= max_attempts
+                     THEN payload - '_claim_token' - '_transcription_receipt'
+                                  - '_transcription_delivery'
+                     ELSE payload - '_claim_token' - '_transcription_receipt' END,
            last_error_at = now(),
            finished_at = CASE
                WHEN :terminal OR attempts >= max_attempts THEN now()
@@ -233,14 +237,20 @@ _DEFER_SQL = text(
 _REQUEUE_EXPIRED_SQL = text(
     """
     UPDATE speech_jobs
-       SET status = CASE WHEN attempts >= max_attempts THEN 'dead' ELSE 'queued' END,
+       SET status = CASE WHEN attempts >= max_attempts
+                         AND NOT (kind = 'transcribe' AND payload ? '_transcription_delivery')
+                         THEN 'dead' ELSE 'queued' END,
+           attempts = CASE WHEN kind = 'transcribe' AND payload ? '_transcription_delivery'
+                           THEN GREATEST(attempts - 1, 0) ELSE attempts END,
            locked_by = NULL,
            locked_at = NULL,
            last_error_class = 'lease_expired',
            payload = payload - '_claim_token' - '_transcription_receipt',
            last_error_at = now(),
            run_after = now(),
-           finished_at = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END
+           finished_at = CASE WHEN attempts >= max_attempts
+                             AND NOT (kind = 'transcribe' AND payload ? '_transcription_delivery')
+                             THEN now() ELSE NULL END
      WHERE status = 'running'
        AND locked_at < now() - make_interval(secs => lease_seconds)
     RETURNING id, call_id, kind, status

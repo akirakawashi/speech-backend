@@ -73,7 +73,8 @@ _ENQUEUE_ANALYSIS = text(
 _COMPLETE = text(
     """
     UPDATE speech_jobs SET status = 'done', finished_at = clock_timestamp(),
-        locked_by = NULL, locked_at = NULL, payload = payload || CAST(:receipt AS jsonb)
+        locked_by = NULL, locked_at = NULL,
+        payload = (payload - '_transcription_delivery') || CAST(:receipt AS jsonb)
     WHERE id = :job_id AND call_id = :call_id AND kind = 'transcribe'
       AND status = 'running' AND locked_by = :worker_id AND attempts = :attempt
       AND payload ->> '_claim_token' = :claim_token

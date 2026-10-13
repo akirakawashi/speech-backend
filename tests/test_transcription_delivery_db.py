@@ -1,6 +1,7 @@
 """PostgreSQL: квитанция, защита захвата, замена входа и атомарность приёма."""
 
 import asyncio
+import json
 from uuid import uuid4
 
 import httpx
@@ -164,6 +165,56 @@ async def _state(sessions, call_id):
         [tuple(row) for row in jobs],
         score_count,
     )
+
+
+async def test_ack_removes_worker_buffer_in_the_receipt_transaction(sessions) -> None:
+    """Commit приёма оставляет одну расшифровку и квитанцию, удаляя временную копию DTO."""
+    _, command = await _running(sessions)
+    async with sessions() as session, session.begin():
+        await session.execute(
+            text(
+                "UPDATE speech_jobs SET payload = payload || CAST(:value AS jsonb) WHERE id = :id"
+            ),
+            {
+                "id": command.claim.job_id,
+                "value": json.dumps({"_transcription_delivery": command.model_dump(mode="json")}),
+            },
+        )
+    service = _service(sessions)
+    receipt = await service.receive_authorized(command, AUTH)
+    async with sessions() as session:
+        payload = await session.scalar(
+            text("SELECT payload FROM speech_jobs WHERE id = :id"), {"id": command.claim.job_id}
+        )
+        assert "_transcription_delivery" not in payload
+        assert TRANSCRIPTION_RECEIPT_KEY in payload
+        assert NEW_TEXT not in json.dumps(payload)
+    assert await service.receive_authorized(command, AUTH) == receipt
+
+
+async def test_backend_reaper_preserves_ready_delivery_after_worker_crash(sessions) -> None:
+    """Сборщик API не хоронит готовый ASR-буфер на последней попытке и освобождает nonce."""
+    queue, command = await _running(sessions)
+    async with sessions() as session, session.begin():
+        await session.execute(
+            text(
+                "UPDATE speech_jobs SET attempts = max_attempts, "
+                "locked_at = now() - interval '2 hours', "
+                "payload = payload || CAST(:value AS jsonb) WHERE id = :id"
+            ),
+            {
+                "id": command.claim.job_id,
+                "value": json.dumps({"_transcription_delivery": command.model_dump(mode="json")}),
+            },
+        )
+    expired = await queue.requeue_expired()
+    assert len(expired) == 1 and expired[0].status.value == "queued"
+    async with sessions() as session:
+        payload = await session.scalar(
+            text("SELECT payload FROM speech_jobs WHERE id = :id"), {"id": command.claim.job_id}
+        )
+        assert CLAIM_TOKEN_KEY not in payload
+        assert payload["_transcription_delivery"] == command.model_dump(mode="json")
 
 
 async def test_http_receive_commits_transcript_receipt_and_next_stage(sessions) -> None:
