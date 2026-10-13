@@ -42,6 +42,11 @@ EXPOSE 8096
 USER 10001:10001
 CMD ["uvicorn", "src.di.http:create_app", "--factory", "--host", "0.0.0.0", "--port", "8096"]
 
+FROM source AS speech-analysis
+RUN uv pip check && speech-analyze --help
+USER 10001:10001
+CMD ["speech-analyze"]
+
 # Совместимая сборка сохранённых команд. Основной воркер собирается отдельно
 # в speech-worker; удаление прежнего кода в эту задачу не входит.
 FROM source AS speech-worker

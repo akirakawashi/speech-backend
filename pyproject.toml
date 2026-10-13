@@ -18,6 +18,9 @@ dependencies = [
   "tzdata>=2026.1",
 ]
 
+[project.scripts]
+speech-analyze = "src.presentation.cli.analysis_processor:main"
+
 [dependency-groups]
 migrations = ["alembic>=1.18.4,<2"]
 dev = [

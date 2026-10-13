@@ -98,46 +98,53 @@ class AnalyzeStatements:
 
     async def store(self, session: AsyncSession, job: ClaimedJob, work: AnalyzeWork) -> None:
         """Сохранить результат этапа в переданной транзакции без самостоятельного commit."""
+        await store_result(session, job.call_id, work)
+
+
+async def store_result(session: AsyncSession, call_id: UUID, work: AnalyzeWork) -> None:
+    """Сохранить разбор и техническое изменение ролей в транзакции вызывающего.
+
+    Вход — сессия, UUID звонка и проверенный AnalyzeWork. Commit отсутствует;
+    при смене ролей прежняя оценка снимается вместе с записью реплик.
+    """
+    await session.execute(
+        _STORE_ANALYSIS_SQL,
+        {
+            "call_id": call_id,
+            "ai_node_id": work.node_id,
+            "sentiment": work.sentiment.value if work.sentiment else None,
+            "summary": work.summary,
+            "ai_suggestion": (
+                json.dumps(list(work.suggestion), ensure_ascii=False) if work.suggestion else None
+            ),
+            "ai_suggestion_node_id": work.suggestion_node_id,
+            "call_reason": work.call_reason,
+            "call_reason_code": work.call_reason_code,
+            "analysis_status": AnalysisStatus.DONE.value,
+            "segment": work.segment,
+            "product": work.product,
+        },
+    )
+    for seq, speaker in work.roles:
         await session.execute(
-            _STORE_ANALYSIS_SQL,
-            {
-                "call_id": job.call_id,
-                "ai_node_id": work.node_id,
-                "sentiment": work.sentiment.value if work.sentiment else None,
-                "summary": work.summary,
-                "ai_suggestion": (
-                    json.dumps(list(work.suggestion), ensure_ascii=False)
-                    if work.suggestion
-                    else None
-                ),
-                "ai_suggestion_node_id": work.suggestion_node_id,
-                "call_reason": work.call_reason,
-                "call_reason_code": work.call_reason_code,
-                "analysis_status": AnalysisStatus.DONE.value,
-                "segment": work.segment,
-                "product": work.product,
-            },
+            _UPDATE_SPEAKER_SQL,
+            {"call_id": call_id, "seq": seq, "speaker": speaker.value},
         )
-        for seq, speaker in work.roles:
-            await session.execute(
-                _UPDATE_SPEAKER_SQL,
-                {"call_id": job.call_id, "seq": seq, "speaker": speaker.value},
-            )
-        if work.roles:
-            # Метод ролей меняется вместе с ролями: иначе транскрипт утверждал
-            # бы, что роли получены энергией каналов, которой у моно-записи нет.
-            await session.execute(
-                _SET_ROLE_METHOD_SQL,
-                {"call_id": job.call_id, "role_method": RoleMethod.LLM_ATTRIBUTION.value},
-            )
-            # Оценку по скрипту могли поставить, пока шёл разбор, — и стояла она
-            # на прежних ролях. Расшифровка от смены ролей не обновляется, сама
-            # оценка не устареет: её удаляют, и команда оценки ставит новую.
-            # Удаление — после записи ролей: команда оценки тоже берёт реплики
-            # и расшифровку раньше, чем строку оценки, и встречного ожидания
-            # через эту строку не возникает.
-            await session.execute(DROP_EVALUATIONS_SQL, {"call_id": job.call_id})
-        return None
+    if work.roles:
+        # Метод ролей меняется вместе с ролями: иначе транскрипт утверждал
+        # бы, что роли получены энергией каналов, которой у моно-записи нет.
+        await session.execute(
+            _SET_ROLE_METHOD_SQL,
+            {"call_id": call_id, "role_method": RoleMethod.LLM_ATTRIBUTION.value},
+        )
+        # Оценку по скрипту могли поставить, пока шёл разбор, — и стояла она
+        # на прежних ролях. Расшифровка от смены ролей не обновляется, сама
+        # оценка не устареет: её удаляют, и команда оценки ставит новую.
+        # Удаление — после записи ролей: команда оценки тоже берёт реплики
+        # и расшифровку раньше, чем строку оценки, и встречного ожидания
+        # через эту строку не возникает.
+        await session.execute(DROP_EVALUATIONS_SQL, {"call_id": call_id})
+    return None
 
 
 async def load(session: AsyncSession, call_id: UUID) -> AnalysisInput | None:

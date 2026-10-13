@@ -176,6 +176,10 @@ _HEARTBEAT_SQL = text(
     UPDATE speech_jobs
        SET locked_at = now()
      WHERE id = :job_id AND locked_by = :worker_id AND status = 'running'
+       AND (CAST(:claim_token AS text) IS NULL OR (
+           payload->>'_claim_token' = :claim_token
+           AND locked_at + make_interval(secs => lease_seconds) > clock_timestamp()
+       ))
     """
 )
 
@@ -253,6 +257,8 @@ _REQUEUE_EXPIRED_SQL = text(
                              THEN now() ELSE NULL END
      WHERE status = 'running'
        AND locked_at < now() - make_interval(secs => lease_seconds)
+       AND (CAST(:kinds AS text[]) IS NULL OR kind = ANY(CAST(:kinds AS text[])))
+       AND (CAST(:lanes AS text[]) IS NULL OR lane = ANY(CAST(:lanes AS text[])))
     RETURNING id, call_id, kind, status
     """
 )
@@ -468,11 +474,18 @@ class PostgresJobQueue:
                 priority=int(row["priority"]),
             )
 
-    async def heartbeat(self, job_id: uuid.UUID, worker_id: str) -> bool:
+    async def heartbeat(
+        self, job_id: uuid.UUID, worker_id: str, *, claim_token: uuid.UUID | None = None
+    ) -> bool:
         """Продлить аренду задания, если оно всё ещё принадлежит указанному воркеру."""
         async with self._sessionmaker() as session, session.begin():
             result = await session.execute(
-                _HEARTBEAT_SQL, {"job_id": job_id, "worker_id": worker_id}
+                _HEARTBEAT_SQL,
+                {
+                    "job_id": job_id,
+                    "worker_id": worker_id,
+                    "claim_token": str(claim_token) if claim_token is not None else None,
+                },
             )
             # `Result` не объявляет `rowcount` в типах, но у UPDATE он есть:
             # это единственный способ отличить «продлили аренду» от «задание
@@ -532,7 +545,12 @@ class PostgresJobQueue:
             )
             return result.first() is not None
 
-    async def requeue_expired(self) -> list[ExpiredJob]:
+    async def requeue_expired(
+        self,
+        *,
+        kinds: Sequence[JobKind] | None = None,
+        lanes: Sequence[JobLane] | None = None,
+    ) -> list[ExpiredJob]:
         """Забрать задания с истёкшей арендой. Что с ними стало — в ответе.
 
         Бюджет попыток учитывается **здесь**, а не только в `fail`, и это была
@@ -548,7 +566,19 @@ class PostgresJobQueue:
         считаться таковым в статистике.
         """
         async with self._sessionmaker() as session, session.begin():
-            rows = (await session.execute(_REQUEUE_EXPIRED_SQL)).mappings().all()
+            rows = (
+                (
+                    await session.execute(
+                        _REQUEUE_EXPIRED_SQL,
+                        {
+                            "kinds": [kind.value for kind in kinds] if kinds is not None else None,
+                            "lanes": [lane.value for lane in lanes] if lanes is not None else None,
+                        },
+                    )
+                )
+                .mappings()
+                .all()
+            )
         return [
             ExpiredJob(
                 id=uuid.UUID(str(row["id"])),

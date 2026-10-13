@@ -200,7 +200,11 @@ async def _call(
 
 
 async def _retranscribe(sessions: Sessions, call_id: uuid.UUID) -> None:
-    """Звонок расшифровали заново: новый текст и новое время расшифровки."""
+    """Перезаписать тестовый текст строго позже прежнего транскрипта и оценки.
+
+    Новый вход должен делать прежнюю оценку устаревшей независимо от того,
+    насколько быстро исполняется тест и с какой точностью обновляются часы.
+    """
     async with sessions() as session, session.begin():
         await session.execute(
             text(
@@ -210,7 +214,12 @@ async def _retranscribe(sessions: Sessions, call_id: uuid.UUID) -> None:
             {"c": call_id},
         )
         await session.execute(
-            text("UPDATE speech_transcripts SET created_at = now() WHERE call_id = :c"),
+            text(
+                "UPDATE speech_transcripts "
+                "SET created_at = GREATEST(clock_timestamp(), created_at, "
+                "(SELECT max(evaluated_at) FROM speech_call_evaluations WHERE call_id = :c)) "
+                "+ interval '1 microsecond' WHERE call_id = :c"
+            ),
             {"c": call_id},
         )
 
