@@ -31,6 +31,22 @@ from src.domain.calls.contracts import JobErrorClass, JobKind, JobLane, JobStatu
 #: никто, и по нему видно, с какого момента задание действительно ждёт.
 NOT_BEFORE_KEY: Final[str] = "not_before"
 
+# Метаданные конкретного захвата и квитанции; сохраняются в существующем payload.
+CLAIM_TOKEN_KEY: Final[str] = "_claim_token"
+TRANSCRIPTION_RECEIPT_KEY: Final[str] = "_transcription_receipt"
+
+
+def claim_token_from_payload(payload: dict[str, JsonValue]) -> uuid.UUID | None:
+    """Прочитать идентификатор захвата; отсутствие/повреждение не даёт действующей аренды."""
+    value = payload.get(CLAIM_TOKEN_KEY)
+    if not isinstance(value, str):
+        return None
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        return None
+
+
 #: С какого момента задание ждёт воркера — выражением SQL над `speech_jobs`.
 #: У обычного задания это момент создания, у отложенного — конец отсрочки.
 #: По нему считается возраст очереди: считая от создания, отложенные до ночи
@@ -76,6 +92,11 @@ class ClaimedJob(BaseModel):
     lease_seconds: int
     #: Приоритет задания; с ним же ставится следующий этап. `None` — по полосе.
     priority: int | None = None
+
+    @property
+    def claim_token(self) -> uuid.UUID | None:
+        """Вернуть nonce текущего захвата для доставки; у прежних вручную созданных DTO его нет."""
+        return claim_token_from_payload(self.payload)
 
     @property
     def is_last_attempt(self) -> bool:

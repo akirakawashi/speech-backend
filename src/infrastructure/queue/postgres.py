@@ -136,7 +136,7 @@ _RESET_JOB_SQL = text(
            priority = CASE CAST(:lane AS text) WHEN 'daily' THEN 0 ELSE 100 END,
            attempts = 0, max_attempts = :max_attempts,
            run_after = COALESCE(:run_after, now()), lease_seconds = :lease_seconds,
-           payload = CAST(:payload AS jsonb),
+           payload = CAST(:payload AS jsonb) - '_claim_token' - '_transcription_receipt',
            locked_by = NULL, locked_at = NULL, started_at = NULL, finished_at = NULL,
            last_error_class = NULL, last_error_at = NULL
      WHERE id = :job_id AND status IN ('done', 'failed', 'dead')
@@ -151,7 +151,9 @@ _CLAIM_SQL = text(
            locked_by = :worker_id,
            locked_at = now(),
            started_at = COALESCE(started_at, now()),
-           attempts = attempts + 1
+           attempts = attempts + 1,
+           payload = (payload - '_transcription_receipt')
+                     || jsonb_build_object('_claim_token', gen_random_uuid()::text)
      WHERE id = (
            SELECT id
              FROM speech_jobs
@@ -196,6 +198,7 @@ _FAIL_SQL = text(
            locked_by = NULL,
            locked_at = NULL,
            last_error_class = :error_class,
+           payload = payload - '_claim_token' - '_transcription_receipt',
            last_error_at = now(),
            finished_at = CASE
                WHEN :terminal OR attempts >= max_attempts THEN now()
@@ -220,7 +223,8 @@ _DEFER_SQL = text(
            attempts = GREATEST(attempts - 1, 0),
            run_after = now() + make_interval(secs => :delay),
            locked_by = NULL,
-           locked_at = NULL
+           locked_at = NULL,
+           payload = payload - '_claim_token' - '_transcription_receipt'
      WHERE id = :job_id AND locked_by = :worker_id AND status = 'running'
     RETURNING id
     """
@@ -233,6 +237,7 @@ _REQUEUE_EXPIRED_SQL = text(
            locked_by = NULL,
            locked_at = NULL,
            last_error_class = 'lease_expired',
+           payload = payload - '_claim_token' - '_transcription_receipt',
            last_error_at = now(),
            run_after = now(),
            finished_at = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END

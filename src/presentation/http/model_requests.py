@@ -17,6 +17,8 @@ async def model_validation_error_response(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Скрыть входные значения в отказе служебного маршрута; сохранить ответы остальных."""
+    if request.url.path == "/internal/v1/transcription-results":
+        return JSONResponse(status_code=422, content={"detail": "invalid transcription result"})
     if request.url.path.startswith("/internal/v1/"):
         return JSONResponse(status_code=422, content={"detail": "invalid model request"})
     return await request_validation_exception_handler(request, exc)
