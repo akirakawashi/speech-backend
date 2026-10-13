@@ -8,15 +8,20 @@ from typing import Any
 
 import pytest
 
-from src.application.pipeline.analyze import (
-    SUGGESTION_LABEL_LIMIT,
-    SUMMARY_LIMIT,
-    _interpret,
-    _require_shape,
+from src.application.analysis.interpretation import AnalysisInterpretationService
+from src.application.analysis.output import (
     describe_raw_problem,
     normalise_outputs,
+    require_shape,
 )
-from src.infrastructure.persistence.classifier import EMPTY_LEVEL_LABEL, ClassifierIndex, label_key
+from src.application.dto.analysis import (
+    AnalysisInterpretationContext,
+    AnalysisInterpretationRequest,
+    AnalyzeWork,
+)
+from src.application.dto.pipeline_input import ClassifierRecord
+from src.domain.calls.analysis import SUGGESTION_LABEL_LIMIT, SUMMARY_LIMIT
+from src.domain.calls.classifier import EMPTY_LEVEL_LABEL, label_key
 
 #: Перевод строки отдельным именем: этот файл не раз правился скриптами,
 #: а обратный слэш в них теряется незаметно.
@@ -32,7 +37,7 @@ _GOOD = {
 }
 
 
-def _index() -> ClassifierIndex:
+def _classifier() -> tuple[ClassifierRecord, ...]:
     """Ветка «Физ.лицо › ШПД › Консультация › Не работает › Wi-Fi» и «Кошелек» без уровня 1."""
     ids = [uuid.uuid4() for _ in range(7)]
     rows = [
@@ -44,9 +49,27 @@ def _index() -> ClassifierIndex:
         (ids[5], None, 1, ""),
         (ids[6], ids[5], 2, "Кошелек"),
     ]
-    return ClassifierIndex(
-        {"id": node, "parent_id": parent, "level": level, "label": label, "key": label_key(label)}
+    return tuple(
+        ClassifierRecord(id=node, parent_id=parent, level=level, label=label, key=label_key(label))
         for node, parent, level, label in rows
+    )
+
+
+def _interpret_answer(
+    outputs: dict[str, Any],
+    *,
+    classifier: tuple[ClassifierRecord, ...],
+    needs_roles: bool,
+    reason_codes: frozenset[str] = frozenset(),
+) -> AnalyzeWork:
+    """Вызвать самостоятельный сервис с DTO ответа и снимка контекста."""
+    return AnalysisInterpretationService().interpret(
+        AnalysisInterpretationRequest(
+            outputs=outputs,
+            context=AnalysisInterpretationContext(
+                classifier=classifier, needs_roles=needs_roles, reason_codes=reason_codes
+            ),
+        )
     )
 
 
@@ -64,8 +87,8 @@ def _answer(payload: Any, wrapper: str = "{body}") -> dict[str, Any]:
 def test_a_clean_answer_passes_through() -> None:
     outputs = normalise_outputs(_answer(_GOOD))
 
-    _require_shape(outputs)
-    work = _interpret(outputs, classifier=_index(), needs_roles=True)
+    require_shape(outputs)
+    work = _interpret_answer(outputs, classifier=_classifier(), needs_roles=True)
     assert work.path == tuple(WIFI_PATH)
     assert work.node_id is not None
     assert work.sentiment is not None
@@ -100,7 +123,7 @@ def test_the_reasoning_block_is_cut_before_parsing() -> None:
 
     outputs = normalise_outputs({"answer": raw})
 
-    _require_shape(outputs)
+    require_shape(outputs)
     assert outputs["path"] == WIFI_PATH, "взят черновик из рассуждения"
     assert outputs["sentiment"] == "negative"
 
@@ -146,7 +169,7 @@ def test_an_unclosed_reasoning_block_is_refused() -> None:
     raw = "<think>" + NEWLINE + "Подумаю…" + NEWLINE + json.dumps(_GOOD, ensure_ascii=False)
 
     with pytest.raises(ValueError):
-        _require_shape(normalise_outputs({"answer": raw}))
+        require_shape(normalise_outputs({"answer": raw}))
 
 
 @pytest.mark.parametrize(
@@ -167,7 +190,7 @@ def test_the_answer_is_found_inside_what_the_model_added_around_it(wrapper: str)
     """
     outputs = normalise_outputs(_answer(_GOOD, wrapper))
 
-    _require_shape(outputs)
+    require_shape(outputs)
     assert outputs["path"] == WIFI_PATH
 
 
@@ -179,7 +202,7 @@ def test_an_unusable_answer_is_refused_not_guessed(raw: str) -> None:
     смесь настоящих нейтральных и тех, что модель не разметила.
     """
     with pytest.raises(ValueError):
-        _require_shape(normalise_outputs(_answer(raw)))
+        require_shape(normalise_outputs(_answer(raw)))
 
 
 @pytest.mark.parametrize("value", ["neutral ", "NEGATIVE", "смешанная", "", None, 5])
@@ -188,7 +211,7 @@ def test_a_sentiment_outside_the_three_values_is_refused(value: Any) -> None:
     outputs = normalise_outputs(_answer({**_GOOD, "sentiment": value}))
 
     with pytest.raises(ValueError, match="sentiment"):
-        _require_shape(outputs)
+        require_shape(outputs)
 
 
 @pytest.mark.parametrize("value", [None, [], [""], ["  ", None], "Физ.лицо", {"level": "ШПД"}])
@@ -196,7 +219,7 @@ def test_a_missing_path_is_refused(value: Any) -> None:
     outputs = normalise_outputs(_answer({**_GOOD, "path": value}))
 
     with pytest.raises(ValueError, match="path"):
-        _require_shape(outputs)
+        require_shape(outputs)
 
 
 def test_the_already_parsed_form_is_left_alone() -> None:
@@ -213,7 +236,7 @@ def test_roles_are_dropped_when_nobody_asked_for_them() -> None:
     """
     outputs = normalise_outputs(_answer(_GOOD))
 
-    assert _interpret(outputs, classifier=_index(), needs_roles=False).roles == ()
+    assert _interpret_answer(outputs, classifier=_classifier(), needs_roles=False).roles == ()
 
 
 def test_a_broken_role_is_skipped_and_the_rest_survive() -> None:
@@ -234,14 +257,14 @@ def test_a_broken_role_is_skipped_and_the_rest_survive() -> None:
         )
     )
 
-    roles = _interpret(outputs, classifier=_index(), needs_roles=True).roles
+    roles = _interpret_answer(outputs, classifier=_classifier(), needs_roles=True).roles
     assert [seq for seq, _ in roles] == [1, 5]
 
 
 def test_a_long_summary_is_trimmed_to_the_agreed_limit() -> None:
     outputs = normalise_outputs(_answer({**_GOOD, "summary": "а" * 900}))
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False)
+    work = _interpret_answer(outputs, classifier=_classifier(), needs_roles=False)
     assert work.summary is not None
     assert len(work.summary) == SUMMARY_LIMIT
 
@@ -250,7 +273,7 @@ def test_a_path_off_the_tree_keeps_what_was_found() -> None:
     """Уровень мимо дерева узлов не заводит: остаётся найденное выше."""
     outputs = normalise_outputs(_answer({**_GOOD, "path": ["Физ.лицо", "ШПД", "Выдумка"]}))
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False)
+    work = _interpret_answer(outputs, classifier=_classifier(), needs_roles=False)
     assert work.path == ("Физ.лицо", "ШПД")
 
 
@@ -258,7 +281,7 @@ def test_a_dash_after_the_last_level_is_no_level() -> None:
     """Прочерк пятым уровнем — «уточнений нет», как пишут операторы."""
     outputs = normalise_outputs(_answer({**_GOOD, "path": [*WIFI_PATH[:4], "-"]}))
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False)
+    work = _interpret_answer(outputs, classifier=_classifier(), needs_roles=False)
     assert work.path == tuple(WIFI_PATH[:4])
 
 
@@ -269,7 +292,7 @@ def test_a_dash_after_the_last_level_is_no_level() -> None:
 
 def _suggest(value: Any) -> tuple[tuple[str, ...], bool]:
     outputs = normalise_outputs(_answer({**_GOOD, "ai_path": value}))
-    work = _interpret(outputs, classifier=_index(), needs_roles=False)
+    work = _interpret_answer(outputs, classifier=_classifier(), needs_roles=False)
     return work.suggestion, work.suggestion_node_id is not None
 
 
@@ -295,7 +318,7 @@ def test_an_empty_level_in_a_suggestion_is_read_by_its_name() -> None:
 @pytest.mark.parametrize("value", [None, 5, [], {}, [""], ["  ", None], "Перенос номера"])
 def test_a_missing_or_broken_suggestion_leaves_the_field_empty(value: Any) -> None:
     """Модель может поля не дать: разбор обязан работать и без него."""
-    _require_shape(normalise_outputs(_answer({**_GOOD, "ai_path": value})))
+    require_shape(normalise_outputs(_answer({**_GOOD, "ai_path": value})))
 
     assert _suggest(value) == ((), False)
 
@@ -326,7 +349,9 @@ def test_a_reason_and_its_code_are_read_from_the_answer() -> None:
         )
     )
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False, reason_codes=_CODES)
+    work = _interpret_answer(
+        outputs, classifier=_classifier(), needs_roles=False, reason_codes=_CODES
+    )
 
     assert (work.call_reason, work.call_reason_code) == (
         "Не работает домашний интернет, горит LOS.",
@@ -340,7 +365,9 @@ def test_a_reason_and_its_code_are_read_from_the_answer() -> None:
 def test_a_code_with_its_label_or_in_another_case_is_still_the_code(answered: str) -> None:
     outputs = normalise_outputs(_answer({**_GOOD, "call_reason_code": answered}))
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False, reason_codes=_CODES)
+    work = _interpret_answer(
+        outputs, classifier=_classifier(), needs_roles=False, reason_codes=_CODES
+    )
 
     assert work.call_reason_code == "K05"
 
@@ -350,7 +377,9 @@ def test_a_code_outside_the_reference_sent_is_not_kept(answered: Any) -> None:
     """Ни «похожего» кода, ни умолчания: мимо списка — пусто."""
     outputs = normalise_outputs(_answer({**_GOOD, "call_reason_code": answered}))
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False, reason_codes=_CODES)
+    work = _interpret_answer(
+        outputs, classifier=_classifier(), needs_roles=False, reason_codes=_CODES
+    )
 
     assert work.call_reason_code is None
 
@@ -359,8 +388,10 @@ def test_an_answer_without_a_reason_is_still_a_marked_call() -> None:
     """Поля причины необязательны: без них разбор звонка не теряется."""
     outputs = normalise_outputs(_answer(_GOOD))
 
-    _require_shape(outputs)
-    work = _interpret(outputs, classifier=_index(), needs_roles=False, reason_codes=_CODES)
+    require_shape(outputs)
+    work = _interpret_answer(
+        outputs, classifier=_classifier(), needs_roles=False, reason_codes=_CODES
+    )
 
     assert (work.call_reason, work.call_reason_code) == (None, None)
     assert work.node_id is not None
@@ -372,7 +403,7 @@ def test_without_a_reference_the_reason_is_not_taken() -> None:
         _answer({**_GOOD, "call_reason": "Текст.", "call_reason_code": "K05"})
     )
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False)
+    work = _interpret_answer(outputs, classifier=_classifier(), needs_roles=False)
 
     assert (work.call_reason, work.call_reason_code) == (None, None)
 
@@ -384,7 +415,9 @@ def test_a_long_reason_is_trimmed_to_the_agreed_limit() -> None:
         _answer({**_GOOD, "call_reason": "Очень " * 100, "call_reason_code": "K99"})
     )
 
-    work = _interpret(outputs, classifier=_index(), needs_roles=False, reason_codes=_CODES)
+    work = _interpret_answer(
+        outputs, classifier=_classifier(), needs_roles=False, reason_codes=_CODES
+    )
 
     assert work.call_reason is not None
     assert len(work.call_reason) <= REASON_LIMIT

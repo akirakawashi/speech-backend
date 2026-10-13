@@ -4,7 +4,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict
 
-from src.application.pipeline.analyze import AnalyzeWork
+from src.application.dto.analysis import AnalyzeWork
 
 
 class Sampled(BaseModel):

@@ -13,10 +13,11 @@ from typing import Any, cast
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.pipeline.analyze import MAX_OUTPUT_ATTEMPTS, SUMMARY_LIMIT, AnalyzeHandler
+from src.application.pipeline.analyze import MAX_OUTPUT_ATTEMPTS, AnalyzeHandler
 from src.application.pipeline.stages import StageDeps, StageError
 from src.application.ports.queue import ClaimedJob
 from src.di.pipeline import build_stage_deps
+from src.domain.calls.analysis import SUMMARY_LIMIT
 from src.domain.calls.contracts import (
     AnalysisStatus,
     JobErrorClass,

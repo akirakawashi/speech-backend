@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import Any
 
+from src.application.analysis.interpretation import AnalysisInterpretationService
 from src.application.dto.pipeline_settings import PipelineSettings
 from src.application.pipeline.analyze import AnalyzeHandler
 from src.application.pipeline.evaluate import EvaluateHandler
@@ -87,7 +88,7 @@ def build_registry(stages: Collection[JobKind] | None = None) -> StageRegistry:
     handlers: dict[JobKind, StageHandler[Any]] = {
         JobKind.INGEST: IngestHandler(),
         JobKind.TRANSCRIBE: TranscribeHandler(),
-        JobKind.ANALYZE: AnalyzeHandler(),
+        JobKind.ANALYZE: AnalyzeHandler(interpreter=AnalysisInterpretationService()),
         JobKind.EVALUATE: EvaluateHandler(),
     }
     wanted = set(handlers) if stages is None else set(stages)
