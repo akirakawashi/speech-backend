@@ -43,28 +43,19 @@ class WorkerMaintenanceService:
     ) -> MaintenancePlan:
         """Выдать следующий срок и параметры действия после проверки служебного доступа."""
         authorize_worker(self._worker_token, authorization)
-        from src.application.dto.quality_batch import RunEvaluation
-
-        ingest = None
-        evaluation = None
-        if command.action == "quality":
-            evaluation = RunEvaluation(
-                everything=True, limit=self._schedule.quality_limit, skip_failed=True, apply=True
-            )
-        else:
-            ingest = CatchUpCommand(
-                source=CallSource(command.action),
+        ingest = CatchUpCommand(
+            source=CallSource(command.action),
+            timezone=self._schedule.timezone,
+            priority=20 if command.action == "telphin" else None,
+            day_share=DayShare(
+                share=self._schedule.immediate_share,
+                night_from=self._schedule.night_from,
+                night_until=self._schedule.night_until,
                 timezone=self._schedule.timezone,
-                priority=20 if command.action == "telphin" else None,
-                day_share=DayShare(
-                    share=self._schedule.immediate_share,
-                    night_from=self._schedule.night_from,
-                    night_until=self._schedule.night_until,
-                    timezone=self._schedule.timezone,
-                )
-                if command.action == "ncc"
-                else None,
             )
+            if command.action == "ncc"
+            else None,
+        )
         instant = now or datetime.now(UTC)
         run_at = self._schedule.next_run(command.action, instant, command.last_started)
         return MaintenancePlan(
@@ -72,15 +63,7 @@ class WorkerMaintenanceService:
             run_at=run_at,
             wait_seconds=max(0, (run_at - instant).total_seconds()),
             ingest=ingest,
-            evaluation=evaluation,
         )
-
-    async def enqueue_authorized(
-        self, command: QualityQueueRequest, authorization: str | None
-    ) -> QualityQueueReport:
-        """Проверить охват, выбрать готовые звонки Телфина и поставить оценку в очередь."""
-        authorize_worker(self._worker_token, authorization)
-        return await self.enqueue(command)
 
     async def enqueue(self, command: QualityQueueRequest) -> QualityQueueReport:
         """Локально выбрать готовый Телфин и поставить независимые задания без служебного HTTP."""

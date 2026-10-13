@@ -15,7 +15,6 @@ from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.ports.evaluation import EvaluationRepository
 from src.application.quality.computation import compute_quality
 from src.application.quality.evaluation import QualityError
-from src.application.worker_access import authorize_worker
 
 
 class _NextCompletion(Exception):
@@ -57,20 +56,14 @@ class _RecordedModel:
 class QualityPreparationService:
     """Выдать следующий готовый запрос или проверенную оценку одного звонка Телфина."""
 
-    def __init__(
-        self, repository: EvaluationRepository, *, model: str, max_tokens: int, worker_token: str
-    ) -> None:
+    def __init__(self, repository: EvaluationRepository, *, model: str, max_tokens: int) -> None:
         """Принять хранение снимка, параметры модели и ключ служебного доступа."""
         self._repository = repository
         self._model = model
         self._max_tokens = max_tokens
-        self._worker_token = worker_token
 
-    async def prepare_authorized(
-        self, command: QualityStepRequest, authorization: str | None
-    ) -> QualityStep:
-        """Проверить доступ и актуальность снимка; не открывать долгую транзакцию."""
-        authorize_worker(self._worker_token, authorization)
+    async def prepare(self, command: QualityStepRequest) -> QualityStep:
+        """Подготовить локальный шаг и проверить снимок; не открывать долгую транзакцию."""
         if not self._model:
             raise ApplicationError(ErrorKind.UNAVAILABLE, "quality model is not configured")
         try:

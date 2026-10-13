@@ -20,17 +20,7 @@ def build_quality_preparation(settings: Settings) -> QualityPreparationService:
         PostgresEvaluationRepository(get_speech_ms_sessionmaker(settings)),
         model=settings.speech_quality_llm_model.strip(),
         max_tokens=settings.speech_quality_llm_max_tokens,
-        worker_token=settings.speech_worker_api_token,
     )
-
-
-async def quality_preparation_application(
-    settings: Annotated[Settings, Depends(get_settings)],
-    authorization: Annotated[str | None, Header()] = None,
-) -> QualityPreparationService:
-    """Собрать подготовку оценки для служебного HTTP-запроса."""
-    authorize_worker(settings.speech_worker_api_token, authorization)
-    return build_quality_preparation(settings)
 
 
 async def maintenance_application(

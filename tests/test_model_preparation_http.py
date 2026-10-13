@@ -1,83 +1,43 @@
-"""Служебный HTTP-маршрут работает без БД и скрыт от публичного контракта."""
+"""HTTP API не передаёт воркеру модельные запросы или управление оценкой."""
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
-from src.application.dto.model_execution import PreparedModelRequest
+from src.application.dto.maintenance import MaintenanceRequest
 from src.di.http import create_app
 from src.setting.config import Settings
-from tests.test_model_preparation import _inputs
-
-HEADERS = {"Authorization": "Bearer worker-secret"}
-COMMAND = {"contract_version": "1.0", "scenario": "analysis", "inputs": _inputs("analysis")}
 
 
-def _client(token: str = "worker-secret") -> TestClient:
-    """Создать настоящее приложение с недоступной БД: подготовка её не использует."""
-    return TestClient(
-        create_app(
-            Settings(
-                _env_file=None,
-                app_env="local",
-                speech_auth_mode="open",
-                speech_ms_database_url="postgresql+asyncpg://unreachable/unreachable",
-                speech_worker_api_token=token,
-            )
+@pytest.mark.parametrize("route", ["model-requests", "quality-jobs", "quality-steps"])
+@pytest.mark.parametrize("token", ["", "worker-secret"])
+@pytest.mark.parametrize("authorization", [None, "Bearer wrong", "Bearer worker-secret"])
+async def test_retired_model_routes_are_absent_without_database_access(route, token, authorization):
+    """Даже корректный ключ не открывает LLM-контракт; вход и секреты не отражаются."""
+    app = create_app(
+        Settings(
+            _env_file=None,
+            app_env="local",
+            speech_auth_mode="open",
+            speech_worker_api_token=token,
+            speech_ms_database_url="postgresql+asyncpg://unreachable.invalid/private-database",
         )
     )
-
-
-def test_private_route_returns_versioned_model_request_without_database():
-    """Корректный Bearer открывает подготовку DTO, соединение с БД не требуется."""
-    with _client() as client:
-        response = client.post("/internal/v1/model-requests", json=COMMAND, headers=HEADERS)
-    assert response.status_code == 200
-    result = PreparedModelRequest.model_validate(response.json())
-    assert (result.contract_version, result.scenario, result.model) == (
-        "1.0",
-        "analysis",
-        "qwen3.8-27b-fast",
-    )
-    assert "worker-secret" not in response.text
-
-
-@pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer wrong"}])
-def test_private_route_rejects_missing_or_incorrect_token(headers):
-    """Даже режим open для браузера не отключает служебную авторизацию."""
-    with _client() as client:
-        response = client.post("/internal/v1/model-requests", json=COMMAND, headers=headers)
-    assert response.status_code == 401
-    assert response.headers["www-authenticate"] == "Bearer"
-
-
-def test_unconfigured_private_route_returns_503():
-    """Пустой секрет требует настройки владельцем и не открывает маршрут."""
-    with _client("") as client:
-        assert client.post("/internal/v1/model-requests", json=COMMAND).status_code == 503
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"contract_version": "2.0"},
-        {"scenario": "unknown"},
-        {"extra": "sensitive transcript"},
-        {"inputs": "sensitive transcript"},
-        {"inputs": {"segments": "sensitive transcript"}},
-    ],
-)
-def test_invalid_request_never_echoes_conversation(change):
-    """Ошибки Pydantic и прикладной проверки сохраняют только описание отказа."""
-    with _client() as client:
-        response = client.post(
-            "/internal/v1/model-requests", json={**COMMAND, **change}, headers=HEADERS
+    assert not any(path.startswith("/internal/") for path in app.openapi()["paths"])
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://backend"
+    ) as client:
+        response = await client.post(
+            f"/internal/v1/{route}",
+            json={"contract_version": "private-input", "inputs": {"text": "PRIVATE_TRANSCRIPT"}},
+            headers={"Authorization": authorization} if authorization else {},
         )
-    assert response.status_code == 422
-    assert "sensitive transcript" not in response.text
+    assert response.status_code == 404
+    assert "PRIVATE_TRANSCRIPT" not in response.text
+    assert "private-input" not in response.text and "worker-secret" not in response.text
 
 
-def test_private_route_is_absent_from_browser_openapi():
-    """Контракт фронтенда не получает служебный маршрут и его DTO."""
-    schema = _client().app.openapi()
-    assert not any(path.startswith("/internal/") for path in schema["paths"])
-    assert "PreparedModelRequest" not in schema["components"]["schemas"]
+def test_worker_plan_cannot_request_backend_quality_schedule():
+    """Оценку ставит локальный сценарий бэкенда; воркер запрашивает только источники."""
+    with pytest.raises(ValidationError):
+        MaintenanceRequest(action="quality")

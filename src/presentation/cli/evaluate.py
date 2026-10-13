@@ -7,8 +7,10 @@ import asyncio
 from collections.abc import Sequence
 from datetime import date
 
+from src.application.dto.maintenance import QualityQueueReport
 from src.application.dto.quality_batch import RunEvaluation
-from src.application.errors.quality import QualityModelError, QualityModelNotConfigured
+from src.application.errors.quality import QualityModelError
+from src.application.errors.requests import ApplicationError
 from src.application.quality.batch import validate_selection
 
 
@@ -41,12 +43,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="без модели: счёт оценок, разошедшихся с расшифровкой; с --apply — удалить их",
     )
     parser.add_argument(
+        "--enqueue",
+        action="store_true",
+        help="поставить оценку в очередь при --apply; без модели и ожидания результата",
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="вызвать модель и записать оценки; без него показывается только счёт",
     )
     args = parser.parse_args(argv)
-    from src.di.evaluation import build_evaluation
+    from src.di.evaluation import build_evaluation, run_queued_evaluation
 
     try:
         query = RunEvaluation(
@@ -61,8 +68,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             apply=args.apply,
         )
         validate_selection(query)
-        result = asyncio.run(build_evaluation().run(query, on_line=print))
-    except (ValueError, LookupError, QualityModelNotConfigured) as exc:
+        result = (
+            asyncio.run(run_queued_evaluation(query))
+            if args.enqueue
+            else asyncio.run(build_evaluation().run(query, on_line=print))
+        )
+    except ApplicationError as exc:
+        raise SystemExit(exc.detail) from None
+    except (ValueError, LookupError, RuntimeError) as exc:
         raise SystemExit(str(exc)) from exc
     except QualityModelError as exc:
         raise SystemExit(
@@ -78,6 +91,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if not args.apply:
             print("это была проверка; чтобы удалить, добавьте --apply")
+    elif isinstance(result, QualityQueueReport):
+        print(f"звонков к оценке: {result.candidates}; поставлено в очередь: {result.enqueued}")
+        if not args.apply:
+            print("это была проверка; чтобы поставить задания, добавьте --apply")
     elif result.report is not None:
         print(result.report.describe())
         if not args.apply:

@@ -12,7 +12,6 @@ from src.application.dto.model_execution import (
 )
 from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.ports.model_requests import PromptCatalogue
-from src.application.worker_access import authorize_worker
 
 _VARIABLE = re.compile(r"\{\{(?P<name>[a-z_]+)\}\}")
 
@@ -39,26 +38,13 @@ class ModelRequestService:
         free_model: str,
         candidate_model: str,
         max_tokens: int,
-        worker_token: str,
     ) -> None:
-        """Принять каталог и настройки модели; секрет используется только для доступа."""
+        """Принять каталог, модели и лимит ответа для локальной подготовки запроса."""
         self._catalogue = catalogue
         self._model = model
         self._free_model = free_model
         self._candidate_model = candidate_model
         self._max_tokens = max_tokens
-        self._worker_token = worker_token
-
-    async def prepare_authorized(
-        self, request: ModelPreparationRequest, authorization: str | None
-    ) -> PreparedModelRequest:
-        """Проверить служебный Bearer-токен и подготовить запрос для воркера.
-
-        Пустой настроенный токен закрывает маршрут с 503; неверный даёт 401.
-        Тело разговора и значение токена в ошибки не включаются.
-        """
-        authorize_worker(self._worker_token, authorization)
-        return await self.prepare(request)
 
     async def prepare(self, request: ModelPreparationRequest) -> PreparedModelRequest:
         """Проверить именованные входы и вернуть готовый DTO без вызова модели.

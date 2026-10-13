@@ -8,7 +8,7 @@ from src.application.dto.calls import CallSource
 from src.application.dto.daily_ingest import DayShare
 from src.application.dto.quality_batch import RunEvaluation
 
-MaintenanceAction = Literal["ncc", "telphin", "quality"]
+MaintenanceAction = Literal["ncc", "telphin"]
 
 
 class MaintenanceRequest(BaseModel):
@@ -39,17 +39,12 @@ class MaintenancePlan(BaseModel):
     run_at: AwareDatetime
     wait_seconds: float = Field(default=0, ge=0)
     ingest: CatchUpCommand | None = None
-    evaluation: RunEvaluation | None = None
+    evaluation: None = None
 
     @model_validator(mode="after")
     def command_matches_action(self) -> Self:
         """Отклонить план без команды или с командой другого источника."""
-        if self.action == "quality":
-            if self.ingest is not None or self.evaluation is None:
-                raise ValueError("quality plan needs an evaluation command")
-        elif (
-            self.evaluation is not None or self.ingest is None or self.ingest.source != self.action
-        ):
+        if self.ingest is None or self.ingest.source != self.action:
             raise ValueError("ingestion plan needs the matching source")
         return self
 

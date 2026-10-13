@@ -1,12 +1,22 @@
 """Сборка пакетной оценки из PostgreSQL и клиента выбранной модели."""
 
+from src.application.dto.maintenance import QualityQueueReport
+from src.application.dto.quality_batch import RunEvaluation
 from src.application.quality.batch import EvaluationService
 from src.application.quality.execution import QualityExecutionService
-from src.di.worker_tasks import build_quality_preparation
+from src.application.quality.queue_command import QueuedEvaluationService
+from src.application.quality.scheduling import WorkerMaintenanceService
+from src.di.worker_tasks import build_quality_preparation, build_worker_schedule
 from src.infrastructure.clients.local_quality import LocalQualitySteps
 from src.infrastructure.clients.quality import PreparedQualityModelClient, build_quality_client
 from src.infrastructure.persistence.evaluation import PostgresEvaluationRepository
-from src.infrastructure.persistence.session import get_speech_ms_sessionmaker
+from src.infrastructure.persistence.quality_jobs import PostgresQualityQueueRepository
+from src.infrastructure.persistence.session import (
+    SPEECH_REQUIRED_SCHEMA_REVISION,
+    get_speech_ms_engine,
+    get_speech_ms_sessionmaker,
+    speech_schema_is_ready,
+)
 from src.setting.config import Settings, get_settings
 
 
@@ -23,6 +33,29 @@ def build_evaluation() -> EvaluationService:
 def build_queue_evaluation(settings: Settings) -> QualityExecutionService:
     """Собрать оценку в сохранённой команде бэкенда по общему контракту шагов."""
     return QualityExecutionService(
-        LocalQualitySteps(build_quality_preparation(settings), settings.speech_worker_api_token),
+        LocalQualitySteps(build_quality_preparation(settings)),
         PreparedQualityModelClient(build_quality_client(settings)),
     )
+
+
+async def run_queued_evaluation(query: RunEvaluation) -> QualityQueueReport:
+    """Поставить оценку локально без модели/токена; проверить схему и закрыть пул."""
+    settings = get_settings()
+    engine = get_speech_ms_engine(settings)
+    try:
+        sessions = get_speech_ms_sessionmaker(settings)
+        async with sessions() as session:
+            if not await speech_schema_is_ready(session):
+                raise RuntimeError(
+                    "Speech schema is not ready: apply migrations to "
+                    + SPEECH_REQUIRED_SCHEMA_REVISION
+                )
+        application = WorkerMaintenanceService(
+            build_worker_schedule(settings),
+            PostgresQualityQueueRepository(sessions),
+            PostgresEvaluationRepository(sessions),
+            worker_token="",
+        )
+        return await QueuedEvaluationService(application).run(query)
+    finally:
+        await engine.dispose()

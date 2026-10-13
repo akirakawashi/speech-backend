@@ -11,14 +11,14 @@ from datetime import datetime
 
 from pydantic import JsonValue
 
+from src.application.analysis.execution import (
+    MAX_OUTPUT_ATTEMPTS,
+)
 from src.application.analysis.output import describe_raw_problem, normalise_outputs
 from src.application.dto.pipeline_input import AnalysisSegment
 from src.application.dto.reasons import FillReport, ReasonAnswer, ReasonSelection
 from src.application.errors.external import AnalysisError
 from src.application.errors.reasons import ReasonsNotConfigured
-from src.application.pipeline.analyze import (
-    MAX_OUTPUT_ATTEMPTS,
-)
 from src.application.ports.reasons import ReasonRepository
 from src.application.ports.recordings import AnalysisBackend
 from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, interpret_reason, prompt_reasons

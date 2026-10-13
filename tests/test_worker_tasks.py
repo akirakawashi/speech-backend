@@ -1,4 +1,4 @@
-"""Расписание и подготовка оценки принадлежат бэкенду, HTTP-вызовы — воркеру."""
+"""Расписание приёма и локальные шаги оценки принадлежат бэкенду."""
 
 import json
 from datetime import UTC, datetime, timedelta
@@ -25,7 +25,7 @@ TOKEN = "test-service-token"
 AUTHORIZATION = f"Bearer {TOKEN}"
 
 
-@pytest.mark.parametrize("action", ["ncc", "telphin", "quality"])
+@pytest.mark.parametrize("action", ["ncc", "telphin"])
 def test_maintenance_plan_returns_server_wait_and_ready_parameters(action) -> None:
     """Бэкенд задаёт ожидание и готовые параметры независимо от часов воркера."""
     service = WorkerMaintenanceService(
@@ -44,14 +44,9 @@ def test_maintenance_plan_returns_server_wait_and_ready_parameters(action) -> No
     else:
         assert plan.wait_seconds == 12 * 60
         assert plan.run_at == NOW + timedelta(minutes=15)
-        if action == "ncc":
-            assert plan.ingest is not None and plan.ingest.day_share is not None
-            assert plan.ingest.source.value == "ncc"
-            assert plan.ingest.day_share.share == 0.5 and plan.evaluation is None
-        else:
-            assert plan.ingest is None
-            assert plan.evaluation is not None
-            assert plan.evaluation.limit == 100 and plan.evaluation.apply
+        assert plan.ingest is not None and plan.ingest.day_share is not None
+        assert plan.ingest.source.value == "ncc"
+        assert plan.ingest.day_share.share == 0.5 and plan.evaluation is None
 
 
 @pytest.fixture
@@ -59,9 +54,7 @@ def quality():
     """Подставить только хранение; промпты, разбор и повторы остаются настоящими."""
     repository = AsyncMock()
     repository.load_lines.return_value = LineSnapshot(lines=LINES, read_at=NOW)
-    service = QualityPreparationService(
-        repository, model="backend-model", max_tokens=2048, worker_token=TOKEN
-    )
+    service = QualityPreparationService(repository, model="backend-model", max_tokens=2048)
     return service, repository
 
 
@@ -69,17 +62,17 @@ async def test_quality_returns_initial_prompt_then_review_and_result(quality) ->
     """Ответы модели воспроизводятся, проверка выполняется в бэкенде, вызовов LLM нет."""
     service, repository = quality
     command = QualityStepRequest(call_id=uuid4())
-    first = await service.prepare_authorized(command, AUTHORIZATION)
+    first = await service.prepare(command)
     assert first.request.model == "backend-model"
     assert first.request.max_tokens == 2048
     assert LINES[0].text in first.request.messages[-1].content
     answer = json.dumps(_answer())
     command = command.model_copy(update={"snapshot": first.snapshot, "responses": (answer,)})
-    second = await service.prepare_authorized(command, AUTHORIZATION)
+    second = await service.prepare(command)
     assert second.result is None
     assert any(message.role == "assistant" for message in second.request.messages)
     command = command.model_copy(update={"responses": (answer, answer)})
-    third = await service.prepare_authorized(command, AUTHORIZATION)
+    third = await service.prepare(command)
     assert third.request is None
     assert third.result.totals.score == 100
     assert third.result.snapshot == first.snapshot
@@ -89,10 +82,9 @@ async def test_quality_returns_initial_prompt_then_review_and_result(quality) ->
 async def test_invalid_outputs_end_with_normalized_failure(quality) -> None:
     """Исчерпанные повторы формата дают отказ, пригодный для атомарной записи."""
     service, _ = quality
-    step = await service.prepare_authorized(QualityStepRequest(call_id=uuid4()), AUTHORIZATION)
-    step = await service.prepare_authorized(
-        QualityStepRequest(call_id=uuid4(), snapshot=step.snapshot, responses=("bad",) * 3),
-        AUTHORIZATION,
+    step = await service.prepare(QualityStepRequest(call_id=uuid4()))
+    step = await service.prepare(
+        QualityStepRequest(call_id=uuid4(), snapshot=step.snapshot, responses=("bad",) * 3)
     )
     assert step.result.failure_reason == "invalid_evaluation"
     assert step.result.evaluation is None
@@ -104,13 +96,12 @@ async def test_known_mono_roles_survive_a_later_model_failure(quality) -> None:
     repository.load_lines.return_value = LineSnapshot(
         lines=tuple(line.model_copy(update={"speaker": "unknown"}) for line in LINES), read_at=NOW
     )
-    first = await service.prepare_authorized(QualityStepRequest(call_id=uuid4()), AUTHORIZATION)
+    first = await service.prepare(QualityStepRequest(call_id=uuid4()))
     roles = json.dumps({"roles": [{"seq": line.seq, "speaker": line.speaker} for line in LINES]})
-    final = await service.prepare_authorized(
+    final = await service.prepare(
         QualityStepRequest(
             call_id=uuid4(), snapshot=first.snapshot, responses=(roles,), model_error=True
-        ),
-        AUTHORIZATION,
+        )
     )
     assert final.result.failure_reason == "model_error"
     assert final.result.roles == tuple((line.seq, line.speaker) for line in LINES)
@@ -120,12 +111,10 @@ async def test_changed_transcript_is_rejected_before_preparing_more_prompts(qual
     """Результат старого разговора не смешивается с изменёнными репликами."""
     service, repository = quality
     command = QualityStepRequest(call_id=uuid4())
-    first = await service.prepare_authorized(command, AUTHORIZATION)
+    first = await service.prepare(command)
     repository.load_lines.return_value = LineSnapshot(lines=(), read_at=NOW)
     with pytest.raises(ApplicationError) as failure:
-        await service.prepare_authorized(
-            command.model_copy(update={"snapshot": first.snapshot}), AUTHORIZATION
-        )
+        await service.prepare(command.model_copy(update={"snapshot": first.snapshot}))
     assert failure.value.kind is ErrorKind.CONFLICT
 
 
@@ -134,7 +123,7 @@ async def test_quality_source_is_checked_in_backend(quality) -> None:
     service, repository = quality
     repository.find_call.side_effect = LookupError("ncc must not be evaluated")
     with pytest.raises(ApplicationError) as failure:
-        await service.prepare_authorized(QualityStepRequest(call_id=uuid4()), AUTHORIZATION)
+        await service.prepare(QualityStepRequest(call_id=uuid4()))
     assert failure.value.kind is ErrorKind.NOT_FOUND
     repository.load_lines.assert_not_awaited()
 
@@ -175,8 +164,6 @@ def test_telphin_intake_runs_only_at_night(hour, expected) -> None:
     "route,body",
     [
         ("worker-plan", {"action": "ncc"}),
-        ("quality-jobs", {"selection": {"everything": True, "limit": 100}}),
-        ("quality-steps", {"call_id": str(uuid4())}),
     ],
 )
 @pytest.mark.parametrize(
@@ -218,35 +205,6 @@ def test_continuation_requires_original_snapshot_and_contract_version() -> None:
         QualityStepRequest(call_id=uuid4(), responses=("answer",))
     with pytest.raises(ValidationError):
         MaintenanceRequest(action="ncc", contract_version="2.0")
-
-
-async def test_successful_quality_http_roundtrip_and_sanitized_validation(quality) -> None:
-    """Роут сериализует готовые параметры; отказ DTO не возвращает исходные значения."""
-    from src.application.dto.quality_execution import QualityStep
-    from src.presentation.http.worker_tasks import quality_preparation_dep
-
-    service, _ = quality
-    app = create_app(Settings(_env_file=None, app_env="local", speech_auth_mode="open"))
-    app.dependency_overrides[quality_preparation_dep] = lambda: service
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://backend"
-    ) as client:
-        response = await client.post(
-            "/internal/v1/quality-steps",
-            json={"call_id": str(uuid4())},
-            headers={"Authorization": AUTHORIZATION},
-        )
-        assert response.status_code == 200
-        step = QualityStep.model_validate_json(response.content)
-        assert step.request is not None
-        assert step.request.model == "backend-model" and step.request.max_tokens == 2048
-        invalid = await client.post(
-            "/internal/v1/quality-steps",
-            json={"call_id": str(uuid4()), "contract_version": "private-invalid-value"},
-            headers={"Authorization": AUTHORIZATION},
-        )
-        assert invalid.status_code == 422
-        assert "private-invalid-value" not in invalid.text
 
 
 def test_invalid_night_window_is_rejected_at_api_startup() -> None:

@@ -12,7 +12,6 @@ from src.application.dto.calls import CallSource
 from src.application.dto.model_execution import ModelScenario
 from src.application.errors.reasons import ReasonsNotConfigured
 from src.di.analysis import build_analysis_client
-from src.di.pipeline import build_stage_deps
 from src.di.reasons import build_reason_client
 from src.domain.calls.period import period_bounds
 from src.infrastructure.clients.analysis import SpeechAnalysisClient
@@ -111,10 +110,9 @@ def run_comparison_command(args: argparse.Namespace) -> int:
             return 0
         rows = await compare(
             calls,
-            candidate_deps=build_stage_deps(sessionmaker=sessionmaker, analysis=candidate),
-            control_deps=build_stage_deps(sessionmaker=sessionmaker, analysis=control)
-            if control is not None
-            else None,
+            repository=repository,
+            candidate=candidate,
+            control=control,
             concurrency=args.concurrency,
             echo=echo,
         )

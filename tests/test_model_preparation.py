@@ -129,25 +129,6 @@ async def test_candidate_must_be_configured_and_different(model):
         )
 
 
-@pytest.mark.parametrize("header", [None, "", "Basic worker-secret", "Bearer wrong-secret"])
-async def test_service_requires_worker_token(header):
-    """Пользовательская сессия не заменяет служебный токен."""
-    with pytest.raises(ApplicationError) as error:
-        await _service().prepare_authorized(
-            ModelPreparationRequest(scenario="analysis", inputs=_inputs("analysis")), header
-        )
-    assert error.value.kind == ErrorKind.UNAUTHORIZED
-
-
-async def test_unconfigured_token_closes_private_route():
-    """Пустая настройка закрывает служебную подготовку, а не открывает всем доступ."""
-    with pytest.raises(ApplicationError) as error:
-        await _service(speech_worker_api_token="").prepare_authorized(
-            ModelPreparationRequest(scenario="analysis", inputs=_inputs("analysis")), None
-        )
-    assert error.value.kind == ErrorKind.UNAVAILABLE
-
-
 def test_cli_can_prepare_locally_but_requires_llm_address():
     """Старый CLI в бэкенде использует ту же политику без HTTP-вызова самому себе."""
     settings = Settings(_env_file=None, speech_analysis_llm_base_url="")

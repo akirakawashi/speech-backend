@@ -5,36 +5,30 @@ import time
 import uuid
 from collections.abc import Callable, Sequence
 
-from src.application.dto.calls import JobKind, JobLane
+from src.application.analysis.execution import AnalysisExecutionService
+from src.application.dto.calls import JobErrorClass
 from src.application.dto.comparison import Outcome, ReasonOutcome, ReasonRow, Row, Sampled
-from src.application.dto.pipeline_input import AnalysisSegment
-from src.application.pipeline.analyze import AnalyzeHandler
-from src.application.pipeline.stages import StageDeps, StageError
+from src.application.dto.pipeline_input import AnalysisInput, AnalysisSegment
+from src.application.pipeline.stages import StageError
 from src.application.ports.comparison import ComparisonRepository
-from src.application.ports.queue import ClaimedJob
 from src.application.ports.recordings import AnalysisBackend
 from src.application.reasons.batch import ask_reason
 from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, prompt_reasons
 
 
-async def analyse(handler: AnalyzeHandler, deps: StageDeps, call_id: uuid.UUID) -> Outcome:
-    """Разбор кодом этапа, без записи. Отказ — строка с классом ошибки, не исключение."""
-    job = ClaimedJob(
-        id=uuid.uuid4(),
-        call_id=call_id,
-        kind=JobKind.ANALYZE,
-        lane=JobLane.BACKFILL,
-        attempts=1,
-        max_attempts=1,
-        payload={},
-        lease_seconds=0,
-    )
+async def analyse(
+    application: AnalysisExecutionService,
+    backend: AnalysisBackend,
+    call_id: uuid.UUID,
+    data: AnalysisInput | None,
+) -> Outcome:
+    """Вычислить анализ снимка без очереди и записи; отказ вернуть в Outcome."""
     started = time.monotonic()
     try:
-        work = await handler.work(job, deps)
+        if data is None:
+            raise StageError(JobErrorClass.NOT_FOUND, f"call {call_id} is gone")
+        work = await application.execute(call_id, data, backend)
     except StageError as exc:
-        # Текст разговора в сообщения этапа не попадает: там класс, причина и
-        # номер попытки (`analyze._run_until_valid`).
         return Outcome(
             work=None, error=f"{exc.error_class.value}: {exc}", seconds=time.monotonic() - started
         )
@@ -44,14 +38,15 @@ async def analyse(handler: AnalyzeHandler, deps: StageDeps, call_id: uuid.UUID) 
 async def compare(
     calls: Sequence[Sampled],
     *,
-    candidate_deps: StageDeps,
-    control_deps: StageDeps | None,
+    repository: ComparisonRepository,
+    candidate: AnalysisBackend,
+    control: AnalysisBackend | None,
     concurrency: int,
     progress_every: int = 10,
     echo: Callable[[str], None] = print,
 ) -> list[Row]:
-    """Прогнать кандидата и необязательный контроль через этап без записи результатов."""
-    handler = AnalyzeHandler()
+    """Сравнить модели на одном DTO входа каждого звонка без записи и аудиоресурсов."""
+    application = AnalysisExecutionService()
     gate = asyncio.Semaphore(max(1, concurrency))
     started = time.monotonic()
     done = 0
@@ -60,18 +55,17 @@ async def compare(
         """Обработать один звонок в пределах разрешённой параллельности и учесть результат."""
         nonlocal done
         async with gate:
-            # Кандидат и контроль — одновременно: они на разных машинах, и
-            # время прогона определяет самый медленный из двух, а не их сумма.
-            if control_deps is None:
+            data = await repository.analysis_input(call.call_id)
+            if control is None:
                 row = Row(
                     call=call,
-                    candidate=await analyse(handler, candidate_deps, call.call_id),
+                    candidate=await analyse(application, candidate, call.call_id, data),
                     control=None,
                 )
             else:
                 fresh, again = await asyncio.gather(
-                    analyse(handler, candidate_deps, call.call_id),
-                    analyse(handler, control_deps, call.call_id),
+                    analyse(application, candidate, call.call_id, data),
+                    analyse(application, control, call.call_id, data),
                 )
                 row = Row(call=call, candidate=fresh, control=again)
         done += 1

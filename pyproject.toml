@@ -21,6 +21,13 @@ dependencies = [
 [project.scripts]
 speech-analyze = "src.presentation.cli.analysis_processor:main"
 speech-process = "src.presentation.cli.speech_processor:main"
+speech-evaluate = "src.presentation.cli.evaluate:main"
+speech-reanalyze = "src.presentation.cli.reanalyze:main"
+speech-fill-reasons = "src.presentation.cli.fill_reasons:main"
+speech-classifier-backfill = "src.presentation.cli.classifier_backfill:main"
+speech-seed-classifier = "src.presentation.cli.seed_classifier:main"
+speech-seed-call-reasons = "src.presentation.cli.seed_call_reasons:main"
+speech-compare-models = "src.presentation.cli.compare_models:main"
 
 [dependency-groups]
 migrations = ["alembic>=1.18.4,<2"]

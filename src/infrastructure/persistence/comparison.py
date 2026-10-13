@@ -9,9 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.application.dto.calls import AnalysisStatus, CallSource
 from src.application.dto.classifier import NodePaths as PathsSnapshot
 from src.application.dto.comparison import Sampled
-from src.application.dto.pipeline_input import AnalysisSegment
+from src.application.dto.pipeline_input import AnalysisInput, AnalysisSegment
 from src.application.dto.reasons import CallReason
 from src.infrastructure.persistence.classifier import NodePaths
+from src.infrastructure.persistence.stages import analyze
 
 _SAMPLE_SQL = text(
     """
@@ -117,6 +118,13 @@ class PostgresComparisonRepository:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
         """Принять фабрику сессий базы речи."""
         self._sessions = sessions
+
+    async def analysis_input(self, call_id: uuid.UUID) -> AnalysisInput | None:
+        """Прочитать DTO анализа и закрыть сессию до обоих модельных запросов."""
+        async with self._sessions() as session:
+            async with session.begin():
+                await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+                return await analyze.load(session, call_id)
 
     async def sample_calls(
         self, *, date_from: datetime, date_to: datetime, limit: int
