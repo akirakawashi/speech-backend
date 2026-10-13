@@ -243,6 +243,8 @@ async def store_evaluation(
     """Атомарно записать оценку в текущей транзакции после проверки её исходных данных."""
     role_method = await _check_input(session, call_id, source_lines, evaluated_at)
     await _save_roles(session, call_id, evaluation.speaker_roles, role_method)
+    if evaluation.speaker_roles:
+        await session.execute(DROP_EVALUATIONS_SQL, {"call_id": call_id})
     await session.execute(
         _STORE_SQL,
         {

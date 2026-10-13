@@ -5,8 +5,10 @@
 существующей PostgreSQL-очереди. HTTP API быстро подтверждает приём ASR;
 анализ запускается отдельно после сохранения расшифровки.
 
-Оценка `evaluate`, дополнительные команды причин/свободной классификации
-и удаление переходного кода остаются следующими задачами. Новых миграций,
+Оценка `evaluate` реализована в общем `speech-process`:
+[локальная оценка и расписание](evaluation-processing.md).
+Дополнительные команды причин/свободной классификации и удаление переходного
+кода остаются следующими задачами. Новых миграций,
 брокера и репозитория нет. Серверы этой работой не переключались.
 
 ## Запуск и зависимости
@@ -68,7 +70,13 @@ Compose пока запускает API и миграции; этот проце
 | `application/ports/analysis_processing.py` | Хранение снимка и транзакция результатов |
 | `domain/calls/analysis_processing.py` | Правило действующего захвата задания |
 | `infrastructure/persistence/analysis_processing.py` | PostgreSQL, блокировки, сравнение входа и commit |
-| `infrastructure/runtime/analysis_processor.py` | Цикл очереди, heartbeat, восстановление и остановка |
+| `infrastructure/runtime/analysis_processor.py` | Совместимый режим общего runtime только для анализа |
+| `infrastructure/runtime/job_processor.py` | Общий цикл очереди, heartbeat, восстановление и остановка |
+
+Правила nonce/аренды и общие операции PostgreSQL выделены в
+`domain/calls/job_processing.py` и `infrastructure/persistence/job_processing.py`.
+Модули анализа сохраняют свои имена и делегируют общие операции; оценка использует
+те же правила захвата и runtime без копирования цикла.
 
 Сохранённый `AnalyzeHandler` бэкенда делегирует вычисление тому же
 `AnalysisExecutionService`. Правила разбора не копируются. Его старые CLI

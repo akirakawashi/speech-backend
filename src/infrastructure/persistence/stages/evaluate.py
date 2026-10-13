@@ -1,5 +1,7 @@
 """Запись оценки в транзакции исполнителя с защитой от изменения расшифровки."""
 
+from uuid import UUID
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.dto.calls import JobErrorClass
@@ -17,16 +19,21 @@ from src.infrastructure.persistence.quality_transcript import DROP_EVALUATIONS_S
 
 
 async def store(session: AsyncSession, job: ClaimedJob, work: QualityWork) -> None:
-    """Проверить снимок, записать роли и исход; коммит выполняет очередь.
+    """Передать итог оценки в SQL записи текущей транзакции прежнего конвейера."""
+    await store_result(session, job.call_id, work)
 
-    После потери аренды вся транзакция откатывается. Изменившийся вход
-    отклоняется как повторяемый отказ; новая попытка прочитает свежий текст.
+
+async def store_result(session: AsyncSession, call_id: UUID, work: QualityWork) -> None:
+    """Проверить исходные реплики, записать роли и оценку/отказ без commit.
+
+    Вход — сессия, UUID и QualityWork. Вызывающий защищает захват задания;
+    QualityError входа нормализуется как StageError для старых потребителей.
     """
     try:
         if work.evaluation is not None:
             await store_evaluation(
                 session,
-                job.call_id,
+                call_id,
                 work.evaluation,
                 evaluated_at=work.snapshot.read_at,
                 source_lines=work.snapshot.lines,
@@ -34,15 +41,15 @@ async def store(session: AsyncSession, job: ClaimedJob, work: QualityWork) -> No
             )
             return
         role_method = await _check_input(
-            session, job.call_id, work.snapshot.lines, work.snapshot.read_at
+            session, call_id, work.snapshot.lines, work.snapshot.read_at
         )
         if work.roles:
-            await _save_roles(session, job.call_id, work.roles, role_method)
-            await session.execute(DROP_EVALUATIONS_SQL, {"call_id": job.call_id})
+            await _save_roles(session, call_id, work.roles, role_method)
+            await session.execute(DROP_EVALUATIONS_SQL, {"call_id": call_id})
         assert work.failure_reason is not None
         await store_failure_result(
             session,
-            job.call_id,
+            call_id,
             evaluated_at=work.snapshot.read_at,
             model_name=work.model_name,
             script_version=work.script_version,

@@ -47,6 +47,11 @@ RUN uv pip check && speech-analyze --help
 USER 10001:10001
 CMD ["speech-analyze"]
 
+FROM source AS speech-processing
+RUN uv pip check && speech-process --help
+USER 10001:10001
+CMD ["speech-process"]
+
 # Совместимая сборка сохранённых команд. Основной воркер собирается отдельно
 # в speech-worker; удаление прежнего кода в эту задачу не входит.
 FROM source AS speech-worker

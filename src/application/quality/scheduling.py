@@ -80,6 +80,10 @@ class WorkerMaintenanceService:
     ) -> QualityQueueReport:
         """Проверить охват, выбрать готовые звонки Телфина и поставить оценку в очередь."""
         authorize_worker(self._worker_token, authorization)
+        return await self.enqueue(command)
+
+    async def enqueue(self, command: QualityQueueRequest) -> QualityQueueReport:
+        """Локально выбрать готовый Телфин и поставить независимые задания без служебного HTTP."""
         query = command.selection
         try:
             validate_selection(query)

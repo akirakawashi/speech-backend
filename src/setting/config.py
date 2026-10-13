@@ -126,7 +126,7 @@ class Settings(BaseSettings):
 
     # Оценка продаж Телфина.
     speech_quality_llm_base_url: str = ""
-    speech_quality_llm_api_key: str = ""
+    speech_quality_llm_api_key: str = Field(default="", repr=False)
     speech_quality_llm_model: str = "qwen3.8-27b-fast"
     speech_quality_llm_timeout_seconds: float = Field(default=180.0, ge=10.0, le=1800.0)
     speech_quality_llm_max_tokens: int = Field(default=4096, ge=512, le=32768)

@@ -3,7 +3,7 @@
 Инструкция описывает текущий Compose с API и миграциями. По решению
 13.10.2026 обработку текста, LLM-вызовы и сохранение итогов выполняет
 также фоновый CPU-исполнитель проекта бэкенда. Анализ уже запускается командой
-`speech-analyze`, оценка переносится отдельно; приём распознавания LLM не ждёт.
+`speech-process` выполняет анализ и оценку последовательно; приём распознавания LLM не ждёт.
 [Главное правило](processing-ownership.md), [план](refactoring-plan.md).
 
 `docker-compose.yml` принадлежит проекту `speech-backend`. Он запускает API
@@ -144,5 +144,56 @@ docker run -d --name speech-analysis \
 
 Перед переключением для этой базы остановить старый общий LLM-обработчик
 и дождаться его активных заданий. В будущем API и CPU-исполнитель разворачиваются
-отдельными процессами в Kubernetes. `evaluate`, удаление переходных команд
-и фактическое переключение сервера этой задачей не выполняются.
+отдельными процессами в Kubernetes. `evaluate` уже реализован в общем
+CPU-процессе ниже. Удаление переходных команд и фактическое переключение
+сервера остаются отдельными задачами.
+
+## Единый CPU-процесс анализа и оценки
+
+Для обычного запуска используем один `speech-process`. Он содержит оба
+сценария, независимую постановку оценки и последовательное выполнение LLM:
+[параметры и гарантии](evaluation-processing.md).
+
+```bash
+uv run --locked speech-process
+```
+
+Для контейнера экспортируйте доступный ему `SPEECH_MS_DATABASE_URL`, адреса
+и ключи выбранных моделей. Файл `.env` сам по себе переменные Docker не экспортирует.
+При необходимости экспортируйте имена моделей, таймауты, лимиты токенов и
+параметры интервала/порции оценки; иначе используются Settings.
+
+```bash
+docker build --target speech-processing -t speech-backend-processing:local .
+docker run -d --name speech-processing \
+  --network speech-data --restart unless-stopped \
+  --read-only --tmpfs /tmp --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --env SPEECH_MS_DATABASE_URL \
+  --env SPEECH_ANALYSIS_LLM_BASE_URL \
+  --env SPEECH_ANALYSIS_LLM_API_KEY \
+  --env SPEECH_ANALYSIS_LLM_MODEL \
+  --env SPEECH_ANALYSIS_LLM_TIMEOUT_SECONDS \
+  --env SPEECH_ANALYSIS_LLM_MAX_TOKENS \
+  --env SPEECH_QUALITY_LLM_BASE_URL \
+  --env SPEECH_QUALITY_LLM_API_KEY \
+  --env SPEECH_QUALITY_LLM_MODEL \
+  --env SPEECH_QUALITY_LLM_TIMEOUT_SECONDS \
+  --env SPEECH_QUALITY_LLM_MAX_TOKENS \
+  --env SPEECH_QUALITY_INTERVAL_SECONDS \
+  --env SPEECH_QUALITY_BATCH_LIMIT \
+  --env SPEECH_DISPLAY_TIMEZONE \
+  speech-backend-processing:local
+```
+
+Укажите свою сеть вместо `speech-data`; она должна давать доступ к PostgreSQL
+и обеим моделям. Обычный API не получает ключи LLM. CPU-процесс не использует
+Whisper, MinIO, сервисный токен или аудиотом. Цель `speech-analysis` и команда
+`speech-analyze` сохранены для изолированного запуска анализа.
+
+Для проверки одной готовой оценки используйте
+`speech-process --stages evaluate --no-schedule --once`. Так постановка новой
+порции отключена. Начальный режим развёртывания — один CPU-процесс/реплика.
+Перед переключением остановить старые LLM-исполнители и таймер оценки для этой
+базы, дождаться активной работы, затем запустить общий CPU-процесс. Новые
+миграции не нужны. Реальный прогон моделей и переключение ещё впереди.

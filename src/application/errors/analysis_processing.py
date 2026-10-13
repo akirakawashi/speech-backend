@@ -1,7 +1,8 @@
-"""Ожидаемая конкуренция при короткой транзакции завершения анализа."""
+"""Ожидаемая конкуренция при короткой транзакции анализа."""
 
-from src.domain.calls.analysis_processing import LostAnalysisLease as LostAnalysisLease
+from src.application.errors.job_processing import (
+    JobProcessingBusy as AnalysisProcessingBusy,
+    LostJobProcessingLease as LostAnalysisLease,
+)
 
-
-class AnalysisProcessingBusy(RuntimeError):
-    """Снимок изменился или данные заняты; новая попытка должна прочитать свежий вход."""
+__all__ = ["AnalysisProcessingBusy", "LostAnalysisLease"]

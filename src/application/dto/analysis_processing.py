@@ -2,18 +2,18 @@
 
 import hashlib
 import json
-from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
+from src.application.dto.job_processing import JobProcessingOutcome, JobProcessorOptions
 from src.application.dto.pipeline_input import AnalysisInput
 from src.application.ports.queue import ClaimedJob
 from src.domain.calls.analysis_processing import (
     AnalysisClaim as AnalysisClaim,
     AnalysisLease as AnalysisLease,
 )
-from src.domain.calls.contracts import JobErrorClass, JobKind, JobLane
+from src.domain.calls.contracts import JobKind
 
 
 class AnalysisSnapshot(BaseModel):
@@ -34,34 +34,12 @@ class AnalysisSnapshot(BaseModel):
         return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
-class AnalysisOutcome(BaseModel):
-    """Результат обработки после commit; текст и ответ LLM в отчёт не входят."""
-
-    model_config = ConfigDict(frozen=True)
-    status: Literal["done", "retry", "dead", "stale", "deferred"]
-    error_class: JobErrorClass | None = None
+class AnalysisOutcome(JobProcessingOutcome):
+    """Исход анализа после commit либо потери захвата."""
 
 
-class AnalysisProcessorOptions(BaseModel):
-    """Проверить полосы и режим once; этот процесс всегда берёт только analyze."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    lanes: tuple[JobLane, ...] = Field(default=(JobLane.DAILY, JobLane.BACKFILL), min_length=1)
-    once: bool = False
-
-    @field_validator("lanes", mode="before")
-    @classmethod
-    def parse_lanes(cls, value: Any) -> Any:
-        """Прочитать строку полос через запятую; пустое значение отклоняется Pydantic."""
-        if isinstance(value, str):
-            return tuple(part.strip() for part in value.split(",") if part.strip())
-        return value
-
-    @field_validator("lanes")
-    @classmethod
-    def unique_lanes(cls, value: tuple[JobLane, ...]) -> tuple[JobLane, ...]:
-        """Удалить дубли, сохранив явно выбранный порядок."""
-        return tuple(dict.fromkeys(value))
+class AnalysisProcessorOptions(JobProcessorOptions):
+    """Полосы и once для сохранённой команды только analyze."""
 
 
 def analysis_claim(job: ClaimedJob, worker_id: str) -> AnalysisClaim:

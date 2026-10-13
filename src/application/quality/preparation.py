@@ -1,22 +1,20 @@
-"""Бизнес-сценарий оценки в бэкенде; сетевые запросы выполняет воркер."""
+"""Переходный контракт шагов оценки; правила разделяются с локальным CPU-сценарием."""
 
 from collections.abc import Mapping, Sequence
 
 from src.application.dto.model_execution import ModelMessage
-from src.application.dto.quality import CURRENT_SCRIPT, TranscriptLine
+from src.application.dto.quality import CURRENT_SCRIPT
 from src.application.dto.quality_execution import (
     MAX_QUALITY_COMPLETIONS,
     QualityModelRequest,
     QualityStep,
     QualityStepRequest,
-    QualityTotals,
-    QualityWork,
 )
 from src.application.errors.quality import QualityModelError
 from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.ports.evaluation import EvaluationRepository
-from src.application.quality.evaluation import MAX_OUTPUT_ATTEMPTS, QualityError, evaluate
-from src.application.quality.roles import RoleAttributionError, prepare_roles, without_roles
+from src.application.quality.computation import compute_quality
+from src.application.quality.evaluation import QualityError
 from src.application.worker_access import authorize_worker
 
 
@@ -84,13 +82,8 @@ class QualityPreparationService:
         if snapshot.lines != current.lines or snapshot.read_at > current.read_at:
             raise ApplicationError(ErrorKind.CONFLICT, "quality input changed")
         model = _RecordedModel(self._model, command.responses, command.model_error)
-        prepared: Sequence[TranscriptLine] = snapshot.lines
-        evaluation = None
-        failure = None
         try:
-            if without_roles(prepared):
-                prepared = await prepare_roles(model, prepared, max_attempts=MAX_OUTPUT_ATTEMPTS)
-            evaluation = await evaluate(model, prepared)
+            result = await compute_quality(snapshot, model)
         except _NextCompletion as pending:
             return QualityStep(
                 snapshot=snapshot,
@@ -101,40 +94,6 @@ class QualityPreparationService:
                     prompt_version=CURRENT_SCRIPT.version,
                 ),
             )
-        except RoleAttributionError:
-            failure = "roles_undetermined"
-        except QualityModelError:
-            failure = "model_error"
-        except QualityError as exc:
-            failure = (
-                "roles_undetermined" if exc.code == "roles_undetermined" else "invalid_evaluation"
-            )
         if model.consumed != len(command.responses):
             raise ApplicationError(ErrorKind.INVALID_INPUT, "unexpected quality responses")
-        roles = {
-            after.seq: after.speaker
-            for before, after in zip(snapshot.lines, prepared, strict=True)
-            if before.speaker != after.speaker
-        }
-        if evaluation is not None:
-            roles.update(evaluation.speaker_roles)
-            evaluation = evaluation.model_copy(update={"speaker_roles": tuple(roles.items())})
-        return QualityStep(
-            snapshot=snapshot,
-            result=QualityWork(
-                snapshot=snapshot,
-                model_name=self._model,
-                script_version=CURRENT_SCRIPT.version,
-                evaluation=evaluation,
-                totals=QualityTotals(
-                    score=evaluation.score,
-                    passed_count=evaluation.passed_count,
-                    stage_count=evaluation.stage_count,
-                    all_passed=evaluation.all_passed,
-                )
-                if evaluation is not None
-                else None,
-                failure_reason=failure,
-                roles=tuple(roles.items()),
-            ),
-        )
+        return QualityStep(snapshot=snapshot, result=result)
