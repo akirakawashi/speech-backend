@@ -4,9 +4,10 @@ import logging
 from collections.abc import Sequence
 
 from src.application.analysis.execution import AnalysisExecutionService
+from src.application.dto.analysis_computation import AnalysisComputation
 from src.application.dto.analysis_processing import AnalysisClaim, AnalysisOutcome, AnalysisSnapshot
+from src.application.dto.analysis_writes import SaveAnalysis
 from src.application.dto.calls import JobErrorClass, JobKind, JobLane, JobStatus, is_terminal_error
-from src.application.dto.pipeline import AnalyzeWork
 from src.application.errors.analysis_processing import AnalysisProcessingBusy
 from src.application.errors.stages import StageError
 from src.application.ports.analysis import AnalysisBackend
@@ -43,12 +44,12 @@ class AnalysisProcessingService:
             snapshot = await self._repository.load(claim)
         except LostAnalysisLease:
             return AnalysisOutcome(status="stale")
-        work: AnalyzeWork | None = None
+        computation: AnalysisComputation | None = None
         error_class: JobErrorClass | None = None
         try:
             if snapshot is None:
                 raise StageError(JobErrorClass.NOT_FOUND, "call has no transcript")
-            work = await self._execution.execute(claim.call_id, snapshot.data, self._model)
+            computation = await self._execution.execute(claim.call_id, snapshot.data, self._model)
         except StageError as exc:
             error_class = exc.error_class
         except Exception as exc:
@@ -60,7 +61,7 @@ class AnalysisProcessingService:
             )
             error_class = JobErrorClass.UNEXPECTED_ERROR
         try:
-            return await self._finish(claim, snapshot, work, error_class)
+            return await self._finish(claim, snapshot, computation, error_class)
         except LostAnalysisLease:
             return AnalysisOutcome(status="stale")
         except AnalysisProcessingBusy:
@@ -71,7 +72,7 @@ class AnalysisProcessingService:
         self,
         claim: AnalysisClaim,
         snapshot: AnalysisSnapshot | None,
-        work: AnalyzeWork | None,
+        computation: AnalysisComputation | None,
         error_class: JobErrorClass | None,
     ) -> AnalysisOutcome:
         """Сверить снимок и lease, атомарно записать успех либо отказ; не выполнять сеть."""
@@ -85,8 +86,12 @@ class AnalysisProcessingService:
                 snapshot.fingerprint if snapshot else None
             ):
                 raise AnalysisProcessingBusy("analysis_input_has_changed")
-            if work is not None:
-                await transaction.save(claim, work)
+            if computation is not None:
+                if snapshot is None:
+                    raise ValueError("analysis computation requires its source snapshot")
+                await transaction.save(
+                    SaveAnalysis(claim=claim, source=snapshot, result=computation)
+                )
                 if not await transaction.complete(claim):
                     raise LostAnalysisLease("analysis_claim_is_stale")
                 outcome = AnalysisOutcome(status="done")

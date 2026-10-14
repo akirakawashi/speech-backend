@@ -7,11 +7,13 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.analysis.storage import full_analysis
 from src.application.dto.analysis_processing import AnalysisClaim, AnalysisSnapshot
+from src.application.dto.analysis_writes import SaveAnalysis
 from src.application.dto.calls import JobKind, JobLane
-from src.application.dto.pipeline import AnalyzeWork
 from src.application.ports.analysis_processing import AnalysisProcessingTransaction
 from src.application.ports.queue import ExpiredJob
+from src.infrastructure.persistence.analysis_results import AnalysisResultStore
 from src.infrastructure.persistence.job_processing import (
     PostgresJobProcessingRepository,
     PostgresJobProcessingTransaction,
@@ -108,9 +110,22 @@ class PostgresAnalysisProcessingTransaction(PostgresJobProcessingTransaction):
         await self._session.execute(_LOCK_REFERENCES)
         return await _snapshot(self._session, call_id)
 
-    async def save(self, claim: AnalysisClaim, result: AnalyzeWork) -> None:
-        """Переиспользовать прежний SQL записи, включая проектные значения и снятие оценки."""
-        await analyze.store_result(self._session, claim.call_id, result)
+    async def save(self, command: SaveAnalysis) -> None:
+        """Записать текущее вычисление и прежние поля вместе в текущей транзакции.
+
+        Args:
+            command: Сверенный вход, захват и пригодный результат с фактами запроса.
+
+        Side Effects:
+            Сохраняет снимок, анализ, происхождение, проекцию и роли;
+            ошибка последующей проверки lease откатывает их все.
+        """
+        store = AnalysisResultStore(self._session)
+        current = await store.current(command.claim.call_id)
+        reference_id = await store.reference(command.result.reference)
+        result = full_analysis(command, current, reference_id, await self.database_time())
+        await store.put(result)
+        await analyze.store_result(self._session, command.claim.call_id, command.result.work)
 
     async def complete(self, claim: AnalysisClaim) -> bool:
         """Проверить nonce/lease ещё раз и записать done звонка в той же транзакции."""

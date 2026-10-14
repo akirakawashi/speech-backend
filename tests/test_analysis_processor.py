@@ -11,7 +11,9 @@ import pytest
 from pydantic import ValidationError
 
 from src.application.analysis.execution import AnalysisExecutionService
+from src.application.analysis.interpretation import ANALYSIS_RULES_VERSION
 from src.application.analysis.processing import AnalysisProcessingService
+from src.application.dto.analysis_computation import AnalysisComputation
 from src.application.dto.analysis_processing import (
     AnalysisClaim,
     AnalysisLease,
@@ -19,6 +21,8 @@ from src.application.dto.analysis_processing import (
     AnalysisProcessorOptions,
     AnalysisSnapshot,
 )
+from src.application.dto.analysis_storage import AnalysisReferencePayload, ReferenceClassifierNode
+from src.application.dto.analysis_writes import SaveAnalysis
 from src.application.dto.calls import JobErrorClass, JobKind, JobLane
 from src.application.dto.pipeline import AnalyzeWork
 from src.application.dto.pipeline_input import (
@@ -33,6 +37,7 @@ from src.di import analysis_processor as di
 from src.infrastructure.runtime.analysis_processor import AnalysisProcessor
 from src.presentation.cli.analysis_processor import main
 from src.setting.config import Settings
+from tests.model_execution_support import model_result
 from tests.test_speech_analyze import _nodes
 
 
@@ -111,7 +116,20 @@ def context():
     )
     execution = SimpleNamespace(
         execute=AsyncMock(
-            return_value=AnalyzeWork(node_id=None, path=(), sentiment=None, summary="summary")
+            return_value=AnalysisComputation(
+                work=AnalyzeWork(node_id=None, path=(), sentiment=None, summary="summary"),
+                execution=model_result({}).execution,
+                reference=AnalysisReferencePayload(
+                    scenario="analysis",
+                    classifier=tuple(
+                        ReferenceClassifierNode.model_validate(node.model_dump())
+                        for node in snapshot.data.classifier
+                    ),
+                    reason_reference_state="empty",
+                ),
+                rules_version=ANALYSIS_RULES_VERSION,
+                model_call_index=1,
+            )
         )
     )
     service = AnalysisProcessingService(repo, Mock(), execution)
@@ -130,7 +148,13 @@ async def test_outcome_only_after_commit(context) -> None:
     """Завершение анализа подтверждается после выхода из UoW, не после SQL store."""
     assert (await context.service.process(context.claim)).status == "done"
     assert context.state["committed"]
-    context.tx.save.assert_awaited_once()
+    context.tx.save.assert_awaited_once_with(
+        SaveAnalysis(
+            claim=context.claim,
+            source=context.snapshot,
+            result=context.execution.execute.return_value,
+        )
+    )
     context.tx.complete.assert_awaited_once()
 
 

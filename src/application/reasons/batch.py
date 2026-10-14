@@ -15,6 +15,7 @@ from src.application.analysis.execution import (
     MAX_OUTPUT_ATTEMPTS,
 )
 from src.application.analysis.output import describe_raw_problem, normalise_outputs
+from src.application.dto.analysis_writes import ReasonComputation, SaveReason
 from src.application.dto.pipeline_input import AnalysisSegment
 from src.application.dto.reasons import FillReport, ReasonAnswer, ReasonSelection
 from src.application.errors.external import AnalysisError
@@ -26,6 +27,7 @@ from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, interpret_reason, pro
 logger = logging.getLogger(__name__)
 PROVIDER_RETRIES = 3
 PROVIDER_PAUSE_SECONDS = 15
+REASON_RULES_VERSION = "reason-interpretation/1"
 
 
 async def ask_reason(
@@ -35,7 +37,31 @@ async def ask_reason(
     codes: frozenset[str],
     segments: Sequence[AnalysisSegment],
 ) -> ReasonAnswer | None:
-    """Причина одного звонка. `None` — LLM недоступен после повторов."""
+    """Вернуть причину для существующих потребителей без записи; None при отказе LLM."""
+    result = await compute_reason(client, call_id, reference, codes, segments)
+    return result.answer if result is not None else None
+
+
+async def compute_reason(
+    client: AnalysisBackend,
+    call_id: uuid.UUID,
+    reference: str,
+    codes: frozenset[str],
+    segments: Sequence[AnalysisSegment],
+) -> ReasonComputation | None:
+    """Вычислить причину и сохранить факты вызова, не удерживая транзакцию.
+
+    Args:
+        client: Порт сценария reason.
+        call_id: UUID звонка.
+        reference: Фактически передаваемый текст справочника.
+        codes: Допустимые коды этого справочника.
+        segments: Согласованные реплики исходной расшифровки.
+
+    Returns:
+        Последняя проверенная причина с фактами запроса, включая ответ без кода;
+        None означает отказ провайдера после прежнего бюджета повторов.
+    """
     inputs: dict[str, JsonValue] = {
         "call_id": str(call_id),
         "reasons": reference,
@@ -43,12 +69,15 @@ async def ask_reason(
             {"seq": int(s.seq), "speaker": str(s.speaker), "text": s.text_raw} for s in segments
         ],
     }
-    answer = ReasonAnswer()
+    result: ReasonComputation | None = None
+    call_index = 0
     for _attempt in range(MAX_OUTPUT_ATTEMPTS):
-        outputs: dict[str, JsonValue] | None = None
+        outputs: JsonValue = None
         for retry in range(PROVIDER_RETRIES):
             try:
-                outputs = await client.run(inputs)
+                call_index += 1
+                response = await client.run(inputs)
+                outputs = response.outputs
                 break
             except AnalysisError as exc:
                 if not exc.retryable or retry == PROVIDER_RETRIES - 1:
@@ -57,10 +86,16 @@ async def ask_reason(
                 await asyncio.sleep(PROVIDER_PAUSE_SECONDS)
         problem = describe_raw_problem(outputs)
         answer = interpret_reason(normalise_outputs(outputs), codes)
+        result = ReasonComputation(
+            answer=answer,
+            execution=response.execution,
+            model_call_index=call_index,
+            rules_version=REASON_RULES_VERSION,
+        )
         if answer.code:
-            return answer
+            return result
         logger.info("call=%s: no reason code in the answer (%s)", call_id, problem or "no code")
-    return answer
+    return result
 
 
 async def fill_reasons(
@@ -96,29 +131,49 @@ async def fill_reasons(
             "the reason reference is empty or longer than the workflow accepts: "
             "python -m src.presentation.cli.seed_call_reasons --apply"
         )
-    codes = frozenset(reason.code for reason in reasons)
     gate = asyncio.Semaphore(max(1, concurrency))
     done = 0
 
+    async def fill_one(call_id: uuid.UUID) -> None:
+        """Вычислить причину по свежему снимку и учесть только подтверждённую запись."""
+        snapshot = await repository.load(call_id)
+        if snapshot is None or snapshot.has_reason or not snapshot.transcript.segments:
+            report.skipped += 1
+            return
+        actual_reference = prompt_reasons(snapshot.reasons)
+        if not snapshot.reasons or len(actual_reference) > REASONS_PROMPT_LIMIT:
+            report.skipped += 1
+            return
+        result = await compute_reason(
+            client,
+            call_id,
+            actual_reference,
+            frozenset(reason.code for reason in snapshot.reasons),
+            snapshot.transcript.segments,
+        )
+        if result is None:
+            report.failed += 1
+        elif result.answer.code is None:
+            report.unanswered += 1
+        else:
+            saved = await repository.save(SaveReason(source=snapshot, result=result))
+            if saved:
+                report.filled += 1
+            else:
+                report.skipped += 1
+
     async def one(call_id: uuid.UUID) -> None:
-        """Обработать один звонок в пределах разрешённой параллельности и учесть результат."""
+        """Ограничить параллельность и показать прогресс, включая пропущенные звонки."""
         nonlocal done
         async with gate:
-            segments = await repository.segments(call_id)
-            answer = await ask_reason(client, call_id, reference, codes, segments)
-            if answer is None:
-                report.failed += 1
-            elif answer.code is None:
-                report.unanswered += 1
-            else:
-                await repository.save(call_id, answer)
-                report.filled += 1
+            await fill_one(call_id)
             done += 1
             if progress_every and done % progress_every == 0:
                 # `print`, а не `logging`: в образах логирование не сконфигурировано.
                 print(
                     f"  {done}/{len(call_ids)}: записано {report.filled}, "
                     f"без ответа {report.unanswered}, сбой {report.failed}, "
+                    f"пропущено {report.skipped}, "
                     f"{time.monotonic() - started:.0f} с",
                     flush=True,
                 )

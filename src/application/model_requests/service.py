@@ -90,6 +90,7 @@ class ModelRequestService:
             scenario=request.scenario,
             profile=request.profile,
             prompt_version=template.version,
+            prompt_digest=template.fingerprint(),
             model=model,
             messages=messages,
             temperature=0,

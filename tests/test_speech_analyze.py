@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.analysis.execution import MAX_OUTPUT_ATTEMPTS, AnalysisExecutionService
+from src.application.dto.model_execution import ModelExecutionResult
 from src.application.errors.stages import StageError
 from src.domain.calls.analysis import SUMMARY_LIMIT
 from src.domain.calls.contracts import (
@@ -26,6 +27,7 @@ from src.domain.calls.contracts import (
 from src.infrastructure.clients.analysis import AnalysisError, AnalysisNotConfigured
 from src.infrastructure.persistence.classifier import EMPTY_LEVEL_LABEL, label_key
 from src.infrastructure.persistence.stages.analyze import load, store_result
+from tests.model_execution_support import model_result
 
 CALL_ID = uuid.UUID("44444444-5555-6666-7777-888888888888")
 
@@ -94,11 +96,12 @@ class _Workflow:
         self._error = error
         self.inputs: list[dict[str, Any]] = []
 
-    async def run(self, inputs: dict[str, Any]) -> Any:
+    async def run(self, inputs: dict[str, Any]) -> ModelExecutionResult:
+        """Вернуть очередной ответ с явными фактами подставного вызова."""
         self.inputs.append(inputs)
         if self._error is not None:
             raise self._error
-        return self._answers.pop(0) if self._answers else {}
+        return model_result(self._answers.pop(0) if self._answers else {})
 
 
 def _call(role_method: str = RoleMethod.STEREO_ENERGY.value):
@@ -162,7 +165,8 @@ async def _execute(session: _Session, workflow: _Workflow | None):
     """Загрузить DTO настоящим SQL-адаптером и выполнить действующий сценарий анализа."""
     data = await load(cast(AsyncSession, session), CALL_ID)
     assert data is not None
-    return await AnalysisExecutionService().execute(CALL_ID, data, workflow)
+    computation = await AnalysisExecutionService().execute(CALL_ID, data, workflow)
+    return computation.work
 
 
 async def _work(answer: dict[str, Any], *, nodes: list[dict[str, Any]] | None = None):

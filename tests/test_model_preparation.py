@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from pydantic import JsonValue
 
-from src.application.dto.model_execution import ModelPreparationRequest
+from src.application.dto.model_execution import ModelPreparationRequest, PromptTemplate
 from src.application.errors.external import AnalysisNotConfigured
 from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.model_requests.service import ModelRequestService
@@ -67,6 +67,7 @@ async def test_backend_selects_model_and_version(scenario, model, profile):
     )
     assert result.contract_version == "1.0"
     assert result.prompt_version == "1.0"
+    assert result.prompt_digest == FilePromptCatalogue().get(scenario).fingerprint()
     assert result.model == ("candidate-model" if profile == "candidate" else model)
     assert result.temperature == 0
     assert result.max_tokens == 8192
@@ -152,3 +153,38 @@ def test_prompt_inputs_keep_existing_bounds():
         "segments": 480000,
     }
     assert not next(v for v in template.variables if v.name == "reasons").required
+
+
+async def test_prompt_digest_tracks_the_template_without_including_conversation():
+    """Хеш шаблона не меняется от текста, но учитывает содержимое и ограничения."""
+    inputs = _inputs("analysis")
+    first = await _service().prepare(ModelPreparationRequest(scenario="analysis", inputs=inputs))
+    second = await _service().prepare(
+        ModelPreparationRequest(scenario="analysis", inputs={**inputs, "segments": "Другой текст"})
+    )
+    assert first.messages != second.messages
+    assert first.prompt_digest == second.prompt_digest
+    template = FilePromptCatalogue().get("analysis")
+    original = template.model_dump(mode="json")
+    reordered = PromptTemplate.model_validate(dict(reversed(list(original.items()))))
+    assert reordered.fingerprint() == template.fingerprint()
+    changed_text = template.model_copy(
+        update={
+            "messages": (
+                template.messages[0].model_copy(update={"content": "Другая инструкция"}),
+                *template.messages[1:],
+            )
+        }
+    )
+    changed_limits = template.model_copy(
+        update={
+            "variables": (
+                template.variables[0].model_copy(update={"max_length": 63}),
+                *template.variables[1:],
+            )
+        }
+    )
+    assert changed_text.version == changed_limits.version == template.version
+    assert (
+        len({template.fingerprint(), changed_text.fingerprint(), changed_limits.fingerprint()}) == 3
+    )

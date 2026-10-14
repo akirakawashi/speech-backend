@@ -277,6 +277,7 @@ def result_db():
             "transcript_id TEXT REFERENCES speech_transcripts(id) ON DELETE CASCADE, "
             "call_id TEXT, speaker TEXT, text_raw TEXT)",
             "CREATE TABLE speech_call_evaluations (id TEXT PRIMARY KEY, call_id TEXT)",
+            "CREATE TABLE speech_call_analyses (id TEXT PRIMARY KEY, call_id TEXT)",
         ):
             connection.execute(text(ddl))
         connection.execute(
@@ -301,6 +302,10 @@ def result_db():
         )
         connection.execute(
             text("INSERT INTO speech_call_evaluations VALUES ('evaluation', :id)"),
+            {"id": str(CALL_ID)},
+        )
+        connection.execute(
+            text("INSERT INTO speech_call_analyses VALUES ('analysis', :id)"),
             {"id": str(CALL_ID)},
         )
         connection.commit()
@@ -330,6 +335,7 @@ async def test_actual_result_sql_invalidates_only_derived_outputs(
             "speech_transcripts",
             "speech_transcript_segments",
             "speech_call_evaluations",
+            "speech_call_analyses",
         )
     }
     assert await reprocessing.reprocess(session, CALL_ID, kind) == JOB_ID
@@ -346,6 +352,7 @@ async def test_actual_result_sql_invalidates_only_derived_outputs(
         for table, rows in before.items():
             assert connection.execute(text(f"SELECT * FROM {table}")).mappings().all() == rows
         return
+    assert connection.execute(text("SELECT count(*) FROM speech_call_analyses")).scalar_one() == 0
     call = connection.execute(text("SELECT * FROM speech_calls")).mappings().one()
     assert (call["processing_status"], call["completed_at"], call["analysis_status"]) == (
         "queued",

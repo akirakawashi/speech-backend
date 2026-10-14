@@ -27,12 +27,12 @@ async def analyse(
     try:
         if data is None:
             raise StageError(JobErrorClass.NOT_FOUND, f"call {call_id} is gone")
-        work = await application.execute(call_id, data, backend)
+        computation = await application.execute(call_id, data, backend)
     except StageError as exc:
         return Outcome(
             work=None, error=f"{exc.error_class.value}: {exc}", seconds=time.monotonic() - started
         )
-    return Outcome(work=work, error=None, seconds=time.monotonic() - started)
+    return Outcome(work=computation.work, error=None, seconds=time.monotonic() - started)
 
 
 async def compare(

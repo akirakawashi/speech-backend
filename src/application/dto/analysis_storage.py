@@ -9,6 +9,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from src.application.dto.model_execution import Sha256 as Sha256
 from src.application.dto.pipeline_input import ClassifierRecord
 from src.domain.calls.classifier import CLASSIFIER_DEPTH, LABEL_LIMIT, label_key
 from src.domain.calls.contracts import (
@@ -19,7 +20,6 @@ from src.domain.calls.contracts import (
 )
 from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, CallReason, prompt_reasons
 
-Sha256 = Annotated[str, Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")]
 NonEmptyText = Annotated[str, Field(min_length=1)]
 ClassifierPath = Annotated[
     tuple[Annotated[str, Field(max_length=LABEL_LIMIT)], ...], Field(max_length=CLASSIFIER_DEPTH)

@@ -9,6 +9,9 @@ from src.domain.calls.analysis import AnalysisAnswer, RoleCandidate, interpret_a
 from src.domain.calls.classifier import ClassifierIndex
 from src.domain.calls.contracts import Sentiment
 
+#: Меняется при изменении правил интерпретации, независимо от версии промпта.
+ANALYSIS_RULES_VERSION = "analysis-interpretation/1"
+
 
 class AnalysisInterpretationService:
     """Применить правила анализа к одному ответу без базы, модели и очереди."""

@@ -25,6 +25,7 @@ from src.application.ports.queue import (
     claim_token_from_payload,
 )
 from src.application.ports.transcription_delivery import TranscriptionReceptionTransaction
+from src.infrastructure.persistence.analysis_results import remove_analysis
 from src.infrastructure.persistence.settings_store import read_setting
 from src.infrastructure.persistence.stages.transcribe import store_transcript
 from src.infrastructure.queue.postgres import CALL_LOCK_TIMEOUT_MS
@@ -158,6 +159,7 @@ class PostgresTranscriptionReceptionTransaction:
     async def invalidate_results(self, call_id: UUID) -> None:
         """Снять прежнюю разметку, оценку и неработающие задания оценки до замены реплик."""
         params = {"call_id": call_id}
+        await remove_analysis(self._session, call_id)
         await self._session.execute(_INVALIDATE_CALL, params)
         await self._session.execute(
             text("DELETE FROM speech_call_evaluations WHERE call_id = :call_id"), params

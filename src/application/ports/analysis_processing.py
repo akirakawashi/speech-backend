@@ -7,8 +7,8 @@ from typing import Protocol
 from uuid import UUID
 
 from src.application.dto.analysis_processing import AnalysisClaim, AnalysisLease, AnalysisSnapshot
+from src.application.dto.analysis_writes import SaveAnalysis
 from src.application.dto.calls import JobErrorClass, JobLane, JobStatus
-from src.application.dto.pipeline import AnalyzeWork
 from src.application.ports.queue import ExpiredJob
 
 
@@ -27,8 +27,15 @@ class AnalysisProcessingTransaction(Protocol):
         """Удерживать источники снимка до commit; конфликт даёт AnalysisProcessingBusy."""
         ...
 
-    async def save(self, claim: AnalysisClaim, result: AnalyzeWork) -> None:
-        """Записать анализ и роли с прежними правилами инвалидирования оценки."""
+    async def save(self, command: SaveAnalysis) -> None:
+        """Записать анализ, происхождение, прежнюю проекцию и роли одной транзакцией.
+
+        Args:
+            command: Проверенный захват, исходный снимок и пригодное вычисление.
+
+        Side Effects:
+            Сохраняет новые таблицы и прежние поля вместе; снимает зависимые оценки.
+        """
         ...
 
     async def complete(self, claim: AnalysisClaim) -> bool:

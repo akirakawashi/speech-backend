@@ -15,9 +15,11 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from src.application.dto.model_execution import ModelExecutionResult
 from src.application.reasons.batch import fill_reasons
 from src.infrastructure.clients.analysis import AnalysisError
 from src.infrastructure.persistence.reasons import PostgresReasonRepository
+from tests.model_execution_support import model_result
 from tests.speech_db_support import speech_test_database_url
 
 _TEST_DATABASE_URL = speech_test_database_url()
@@ -40,14 +42,15 @@ class _LLM:
         self.answers = list(answers)
         self.inputs: list[dict[str, Any]] = []
 
-    async def run(self, inputs: dict[str, Any]) -> dict[str, Any]:
+    async def run(self, inputs: dict[str, Any]) -> ModelExecutionResult:
+        """Вернуть очередной ответ причины с фактами подставного вызова."""
         self.inputs.append(inputs)
         answer = (
             self.answers.pop(0) if self.answers else {"call_reason": "", "call_reason_code": ""}
         )
         if isinstance(answer, Exception):
             raise answer
-        return {"answer": json.dumps(answer, ensure_ascii=False)}
+        return model_result({"answer": json.dumps(answer, ensure_ascii=False)}, scenario="reason")
 
 
 async def _clean(sessions: Sessions) -> None:

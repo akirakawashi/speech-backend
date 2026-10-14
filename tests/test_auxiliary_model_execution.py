@@ -75,7 +75,10 @@ async def test_local_scenarios_need_only_model_credentials(monkeypatch, scenario
 
     _transport(monkeypatch, respond)
     client = build_analysis_client(_settings(), scenario=scenario, profile=profile)
-    assert await client.run(_inputs(scenario)) == {"answer": "answer"}
+    result = await client.run(_inputs(scenario))
+    assert result.outputs == {"answer": "answer"}
+    assert result.execution.scenario == scenario and result.execution.profile == profile
+    assert result.execution.requested_model == model
     assert len(requests) == 1
 
 

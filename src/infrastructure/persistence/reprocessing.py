@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.application.dto.calls import JobKind, JobLane
 from src.application.dto.quality import CURRENT_SCRIPT
 from src.application.ports.queue import NewJob, ReprocessingConflict
+from src.infrastructure.persistence.analysis_results import remove_analysis
 from src.infrastructure.persistence.settings_store import read_setting
 from src.infrastructure.queue.postgres import PostgresJobQueue
 
@@ -93,6 +94,7 @@ async def reprocess(
     if kind is JobKind.EVALUATE:
         return job_id
     params = {"call_id": call_id}
+    await remove_analysis(session, call_id)
     await session.execute(_RESET_CALL_SQL, params)
     if kind in (JobKind.INGEST, JobKind.TRANSCRIBE):
         # A new transcription replaces all segments anyway. Remove the obsolete

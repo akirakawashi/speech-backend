@@ -3,8 +3,8 @@
 from typing import Protocol
 from uuid import UUID
 
-from src.application.dto.pipeline_input import AnalysisSegment
-from src.application.dto.reasons import ReasonAnswer, ReasonCandidates, ReasonSelection
+from src.application.dto.analysis_writes import ReasonSnapshot, SaveReason
+from src.application.dto.reasons import ReasonCandidates, ReasonSelection
 
 
 class ReasonRepository(Protocol):
@@ -14,10 +14,10 @@ class ReasonRepository(Protocol):
         """Вернуть снимок выбранных звонков и включённых причин."""
         ...
 
-    async def segments(self, call_id: UUID) -> tuple[AnalysisSegment, ...]:
-        """Вернуть реплики по порядку для указанного звонка."""
+    async def load(self, call_id: UUID) -> ReasonSnapshot | None:
+        """Прочитать согласованный снимок входа/версии; None означает отсутствие текста."""
         ...
 
-    async def save(self, call_id: UUID, answer: ReasonAnswer) -> None:
-        """Записать ответ, только если причина всё ещё не заполнена."""
+    async def save(self, command: SaveReason) -> bool:
+        """Записать обе проекции только при прежнем входе/версии; иначе вернуть False."""
         ...
