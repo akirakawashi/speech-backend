@@ -1,4 +1,4 @@
-"""Получение списка звонков NCC и чтение аудио выбранного источника.
+"""Получение метаданных звонков NCC без скачивания записей.
 
 Фабрика поддерживает локальную выгрузку, обход сессий и reporting-представления.
 Режим кейсов rest отклоняется: API кейсов не отдаёт список сессий.
@@ -9,16 +9,13 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
-from collections.abc import AsyncIterator, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 from src.application.dto.sources import (
     CallRef as CallRef,
-)
-from src.application.errors.external import (
-    RecordingNotAvailable as RecordingNotAvailable,
 )
 from src.application.ports.sources import (
     DailyBatchSource as DailyBatchSource,
@@ -58,7 +55,7 @@ OBJECT_KEY_RE = re.compile(
 #: отдаёт идентификаторы без него — `node_domain_1_nauss_0_1778844752_15533498`,
 #: — и руководство в своих примерах тоже: `node_domain_0_nauss_0_1659488423_2`.
 #:
-#: Цена ошибки была бы полной: `download` проверяет форму **до** запроса, и
+#: Цена ошибки была бы полной: HEAD проверяет форму **до** запроса, и
 #: каждый настоящий звонок отсеивался бы как «мы спросили ерунду», не дойдя до
 #: сети. Проверено 2026-09-12 живым скачиванием: запись на 1,1 МБ по
 #: идентификатору без номера узла.
@@ -104,7 +101,7 @@ class LocalExportSource:
     Что источник знает и чего не знает — существенно, потому что от этого
     зависит, какие требования выполнимы:
 
-    * знает: идентификатор сессии, дату звонка, само аудио и **классификацию
+    * знает: идентификатор сессии, дату звонка, путь к аудио и **классификацию
       обращения** — она закодирована деревом каталогов;
     * не знает: оператора, очередь, точное время начала и окончания,
       направление вызова, результат обработки.
@@ -126,10 +123,9 @@ class LocalExportSource:
     есть и ни на что не влияют.
     """
 
-    def __init__(self, root: Path | str, *, chunk_size: int = 1 << 20) -> None:
-        """Настроить LocalExportSource из переданных параметров и зависимостей."""
+    def __init__(self, root: Path | str) -> None:
+        """Принять каталог выгрузки; при перечислении читать только имена и пути файлов."""
         self._root = Path(root)
-        self._chunk_size = chunk_size
 
     @property
     def name(self) -> str:
@@ -181,26 +177,6 @@ class LocalExportSource:
         """
         return sorted({day for _path, _session_id, day in self._iter_files()})
 
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:
-        """Открыть поток записи звонка; отсутствие записи выражается ошибкой порта."""
-        path = Path(ref.audio_locator)
-        if not path.is_file():
-            # `RecordingNotAvailable`, а не `FileNotFoundError`: для этапа
-            # скачивания это «записи нет у источника» — тот же исход, что и
-            # `404` от REST, и обрабатывать его надо одинаково.
-            raise RecordingNotAvailable(f"audio file is gone: {path}")
-
-        async def _stream() -> AsyncIterator[bytes]:
-            """Читать ответ внешнего сервиса порциями с гарантированным закрытием."""
-            with path.open("rb") as handle:
-                while True:
-                    chunk = handle.read(self._chunk_size)
-                    if not chunk:
-                        return
-                    yield chunk
-
-        return _stream()
-
 
 def build_daily_batch_source(settings: Settings) -> DailyBatchSource:
     """Собрать источник по настройкам.
@@ -251,15 +227,12 @@ def build_daily_batch_source(settings: Settings) -> DailyBatchSource:
             timezone=settings.speech_display_timezone,
         )
     if kind == "reporting_view":
-        # Представления отчётной базы NCC: список звонков оттуда, запись — через
-        # REST. Вариант поставщика после опровержения перечисления через API
-        # (SP-001a), проверен на живой базе 2026-09-15.
+        # Метаданные и классификация читаются из reporting; REST нужен только воркеру.
         from src.infrastructure.sources.ncc.reporting import (  # noqa: PLC0415
             ReportingViewSource,
             asyncpg_fetcher,
             parse_views,
         )
-        from src.infrastructure.sources.ncc.rest import build_ncc_rest_client  # noqa: PLC0415
 
         dsn = settings.speech_ncc_reporting_database_url.strip()
         password = settings.speech_ncc_reporting_db_password.strip()
@@ -279,7 +252,6 @@ def build_daily_batch_source(settings: Settings) -> DailyBatchSource:
             )
         return ReportingViewSource(
             fetch=asyncpg_fetcher(dsn, password=password),
-            client=build_ncc_rest_client(settings),
             views=views,
             timezone=settings.speech_ncc_reporting_timezone,
             min_talk_seconds=settings.speech_ncc_min_talk_seconds,

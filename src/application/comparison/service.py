@@ -9,9 +9,9 @@ from src.application.analysis.execution import AnalysisExecutionService
 from src.application.dto.calls import JobErrorClass
 from src.application.dto.comparison import Outcome, ReasonOutcome, ReasonRow, Row, Sampled
 from src.application.dto.pipeline_input import AnalysisInput, AnalysisSegment
-from src.application.pipeline.stages import StageError
+from src.application.errors.stages import StageError
+from src.application.ports.analysis import AnalysisBackend
 from src.application.ports.comparison import ComparisonRepository
-from src.application.ports.recordings import AnalysisBackend
 from src.application.reasons.batch import ask_reason
 from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, prompt_reasons
 

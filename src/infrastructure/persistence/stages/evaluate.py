@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.dto.calls import JobErrorClass
 from src.application.dto.quality_execution import QualityWork
-from src.application.pipeline.stages import StageError
-from src.application.ports.queue import ClaimedJob
+from src.application.errors.stages import StageError
 from src.application.quality.evaluation import QualityError
 from src.infrastructure.persistence.evaluation import (
     _check_input,
@@ -18,16 +17,11 @@ from src.infrastructure.persistence.evaluation import (
 from src.infrastructure.persistence.quality_transcript import DROP_EVALUATIONS_SQL
 
 
-async def store(session: AsyncSession, job: ClaimedJob, work: QualityWork) -> None:
-    """Передать итог оценки в SQL записи текущей транзакции прежнего конвейера."""
-    await store_result(session, job.call_id, work)
-
-
 async def store_result(session: AsyncSession, call_id: UUID, work: QualityWork) -> None:
     """Проверить исходные реплики, записать роли и оценку/отказ без commit.
 
     Вход — сессия, UUID и QualityWork. Вызывающий защищает захват задания;
-    QualityError входа нормализуется как StageError для старых потребителей.
+    QualityError входа нормализуется как StageError для CPU-процесса.
     """
     try:
         if work.evaluation is not None:

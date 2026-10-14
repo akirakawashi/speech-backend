@@ -32,6 +32,7 @@ class JobProcessor:
         lanes: Sequence[JobLane],
         recoveries: Mapping[JobKind, JobProcessingRecovery] | None = None,
         schedule: JobProcessingSchedule | None = None,
+        schedules: Sequence[JobProcessingSchedule] = (),
         worker_id: str | None = None,
         idle_seconds: float = 2,
         heartbeat_seconds: float = 30,
@@ -48,7 +49,7 @@ class JobProcessor:
         self._applications = dict(applications)
         self._kinds = tuple(self._applications)
         self._recoveries = dict(recoveries or {})
-        self._schedule = schedule
+        self._schedules = ((schedule,) if schedule is not None else ()) + tuple(schedules)
         self._background_scheduling = False
         self._lanes = tuple(lanes)
         self.worker_id = worker_id or f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
@@ -69,8 +70,9 @@ class JobProcessor:
             self._recovered = True
         if self._stopping.is_set():
             return False
-        if self._schedule is not None and not self._background_scheduling:
-            await self._schedule.tick()
+        if not self._background_scheduling:
+            for schedule in self._schedules:
+                await schedule.tick()
         if self._stopping.is_set():
             return False
         job = await self._queue.claim(self._lanes, self.worker_id, kinds=self._kinds)
@@ -82,10 +84,8 @@ class JobProcessor:
     async def run_forever(self) -> None:
         """Последовательно выполнять анализ до SIGTERM/SIGINT, изолируя временные ошибки базы."""
         reaper = asyncio.create_task(self._reap_loop())
-        scheduler = None
-        if self._schedule is not None:
-            self._background_scheduling = True
-            scheduler = asyncio.create_task(self._schedule_loop())
+        self._background_scheduling = True
+        schedulers = [asyncio.create_task(self._schedule_loop(item)) for item in self._schedules]
         try:
             while not self._stopping.is_set():
                 processed = False
@@ -99,18 +99,18 @@ class JobProcessor:
             reaper.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await reaper
-            if scheduler is not None:
+            for scheduler in schedulers:
                 scheduler.cancel()
+            for scheduler in schedulers:
                 with contextlib.suppress(asyncio.CancelledError):
                     await scheduler
             self._background_scheduling = False
 
-    async def _schedule_loop(self) -> None:
-        """Вызывать единственный планировщик независимо от длительности LLM."""
-        assert self._schedule is not None
+    async def _schedule_loop(self, schedule: JobProcessingSchedule) -> None:
+        """Вызывать один планировщик независимо от LLM и остальных источников метаданных."""
         while not self._stopping.is_set():
             try:
-                await self._schedule.tick()
+                await schedule.tick()
             except Exception as exc:
                 logger.error("CPU scheduling unavailable: type=%s", type(exc).__name__)
             await self._wait(self._idle_seconds)

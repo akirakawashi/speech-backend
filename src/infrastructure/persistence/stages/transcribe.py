@@ -1,4 +1,4 @@
-"""SQL чтения и записи результата этапа конвейера."""
+"""Сохранение принятого DTO распознавания в транзакции служебного API."""
 
 from __future__ import annotations
 
@@ -8,19 +8,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.dto.pipeline import TranscribeWork
-from src.application.dto.pipeline_input import (
-    CallForTranscription,
-)
-from src.application.ports.queue import ClaimedJob
-
-_LOAD_CALL_SQL = text(
-    """
-    SELECT session_id, audio_status, audio_object_key, audio_channels, duration_s
-      FROM speech_calls
-     WHERE id = :call_id
-    """
-)
-
 
 _DELETE_TRANSCRIPT_SQL = text("DELETE FROM speech_transcripts WHERE call_id = :call_id")
 
@@ -90,17 +77,3 @@ async def store_transcript(
             },
         )
     return UUID(str(transcript_id))
-
-
-class TranscribeStatements:
-    """Сохранение результата в транзакции вызывающего."""
-
-    async def store(self, session: AsyncSession, job: ClaimedJob, work: TranscribeWork) -> None:
-        """Сохранить прежний результат этапа без самостоятельного commit."""
-        await store_transcript(session, job.call_id, work)
-
-
-async def load(session: AsyncSession, call_id: UUID) -> CallForTranscription | None:
-    """Прочитать метаданные записи и вернуть DTO; None означает удалённый звонок."""
-    row = (await session.execute(_LOAD_CALL_SQL, {"call_id": call_id})).mappings().first()
-    return CallForTranscription.model_validate(dict(row)) if row is not None else None

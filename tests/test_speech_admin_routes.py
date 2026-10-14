@@ -446,6 +446,36 @@ async def test_the_pipeline_snapshot_does_not_fail_when_a_dependency_is_down(api
     )
 
 
+async def test_pipeline_monitors_whisper_without_running_transcription(api, monkeypatch) -> None:
+    """Панель конвейера делает только GET /models; ключ и параметры ASR ей не нужны."""
+    client, app, _ids = api
+    settings = app.dependency_overrides[get_settings]()
+    settings.speech_whisper_base_url = "http://whisper.test/v1/"
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        """Записать пробу без внешней сети и вернуть готовность сервера модели."""
+        requests.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(respond), **kwargs),
+    )
+
+    response = await client.get("/api/v1/admin/pipeline")
+
+    assert response.status_code == 200
+    health = {row["name"]: row for row in response.json()["dependencies"]}["whisper"]
+    assert health["configured"] is True and health["reachable"] is True
+    assert len(requests) == 1
+    assert requests[0].method == "GET"
+    assert str(requests[0].url) == "http://whisper.test/v1/models"
+    assert "authorization" not in requests[0].headers
+
+
 async def test_the_pipeline_does_not_show_a_held_call_as_a_stuck_one(api) -> None:
     """Отложенный приёмом до ночи звонок стоит в очереди, но возраста у него нет."""
     client, app, ids = api

@@ -17,7 +17,6 @@ from src.application.dto.pipeline_input import (
     ClassifierRecord,
 )
 from src.application.dto.reasons import CallReason
-from src.application.ports.queue import ClaimedJob
 from src.infrastructure.persistence.quality_transcript import DROP_EVALUATIONS_SQL
 
 _LOAD_CALL_SQL = text(
@@ -91,14 +90,6 @@ _UPDATE_SPEAKER_SQL = text(
 _SET_ROLE_METHOD_SQL = text(
     "UPDATE speech_transcripts SET role_method = :role_method WHERE call_id = :call_id"
 )
-
-
-class AnalyzeStatements:
-    """Сохранение результата в транзакции вызывающего."""
-
-    async def store(self, session: AsyncSession, job: ClaimedJob, work: AnalyzeWork) -> None:
-        """Сохранить результат этапа в переданной транзакции без самостоятельного commit."""
-        await store_result(session, job.call_id, work)
 
 
 async def store_result(session: AsyncSession, call_id: UUID, work: AnalyzeWork) -> None:

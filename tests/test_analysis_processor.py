@@ -27,7 +27,7 @@ from src.application.dto.pipeline_input import (
     CallForAnalysis,
     ClassifierRecord,
 )
-from src.application.pipeline.stages import StageError
+from src.application.errors.stages import StageError
 from src.application.ports.queue import CLAIM_TOKEN_KEY, ClaimedJob
 from src.di import analysis_processor as di
 from src.infrastructure.runtime.analysis_processor import AnalysisProcessor

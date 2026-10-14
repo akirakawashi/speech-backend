@@ -21,10 +21,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--once", action="store_true", help="обработать не больше одного задания и выйти"
     )
     parser.add_argument(
+        "--sources",
+        dest="ingest_sources",
+        default="ncc,telphin",
+        help="автоматический приём метаданных: ncc,telphin; пустая строка отключает приём",
+    )
+    parser.add_argument(
         "--no-schedule",
         dest="schedule_evaluations",
         action="store_false",
-        help="исполнять уже поставленные задания без автоматической постановки оценки",
+        help="отключить автоматическую постановку оценки; приём задаётся через --sources",
     )
     return parser
 

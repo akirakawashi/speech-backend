@@ -106,13 +106,8 @@ class Settings(BaseSettings):
     speech_storage_secret_key: str = ""
     speech_storage_timeout_seconds: float = Field(default=60.0, ge=5.0, le=600.0)
 
-    # Существующий Whisper по HTTP.
+    # Необязательная проба /models для панели конвейера; ASR исполняет speech-worker.
     speech_whisper_base_url: str = ""
-    speech_whisper_api_key: str = ""
-    speech_whisper_model: str = "large-v3"
-    speech_whisper_language: str = "ru"
-    speech_whisper_timeout_seconds: float = Field(default=600.0, ge=30.0, le=1800.0)
-    speech_whisper_vad_filter: bool = True
 
     # Прямой вызов LLM.
     speech_analysis_llm_base_url: str = ""

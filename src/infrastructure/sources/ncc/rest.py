@@ -1,4 +1,4 @@
-"""REST-клиент NCC: поток записей, справочники сотрудников и проектов.
+"""REST-клиент метаданных NCC: HEAD записи, справочники сотрудников и проектов.
 
 Список звонков поставляет выбранный источник; API кейсов для этого не подходит.
 """
@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from typing import Any, Final
@@ -14,7 +14,7 @@ from typing import Any, Final
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.infrastructure.sources.ncc.source import SESSION_ID_RE, RecordingNotAvailable
+from src.infrastructure.sources.ncc.source import SESSION_ID_RE
 from src.setting.config import Settings
 
 #: Руководство требует объявлять тип возвращаемых данных заголовком
@@ -23,10 +23,6 @@ from src.setting.config import Settings
 #: означает то же самое для всех остальных.
 JSON_TYPE: Final[str] = "application/json"
 AUDIO_TYPE: Final[str] = "audio/mpeg"
-
-#: Размер куска при скачивании. Запись на час — десятки мегабайт, и читать её
-#: в память ради того, чтобы тут же выложить в хранилище, незачем.
-CHUNK_SIZE: Final[int] = 1 << 20
 
 #: Типы входящих и исходящих проектов (`dataChannel`). `autoinformer` есть в
 #: обоих списках руководства, поэтому по нему направление не определяется —
@@ -60,8 +56,7 @@ class NccNotConfigured(RuntimeError):
 class NccError(Exception):
     """NCC не ответил или ответил не тем.
 
-    Тело ответа наружу не выносится: у `download` там запись разговора, у
-    остальных запросов — справочник с именами сотрудников.
+    Тело ответа наружу не выносится: справочник может содержать имена сотрудников.
     """
 
     def __init__(self, reason: str, *, retryable: bool, detail: str | None = None) -> None:
@@ -319,48 +314,6 @@ class NccRestClient(BaseModel):
     # ----------------------------------------------------------------- #
     # Запись разговора
     # ----------------------------------------------------------------- #
-
-    async def download(self, session_id: str) -> AsyncIterator[bytes]:
-        """Запись разговора потоком.
-
-        `404` превращается в `RecordingNotAvailable` — ту самую ошибку, которую
-        объявляет порт источника. Этап приёма обязан отличать «записи нет» от
-        «источник сломан»: первое после нескольких попыток означает, что записи
-        не будет вовсе (ING-04), второе — что надо повторять. Если бы `404`
-        приезжал сюда обычным `NccError`, этап считал бы отсутствием записи
-        любую поломку.
-
-        Идентификатор проверяется до запроса. Мусор всё равно вернул бы `404`,
-        но «записи нет» и «мы спросили ерунду» — разные события, и второе не
-        должно выглядеть как первое.
-        """
-        identifier = session_id.strip()
-        if not SESSION_ID_RE.match(identifier):
-            raise NccError("download_bad_session_id", retryable=False)
-
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            try:
-                request = client.build_request(
-                    "GET",
-                    f"{self.base_url}/callrecord/download",
-                    params={"sessionId": identifier},
-                    headers=self._headers(AUDIO_TYPE),
-                )
-                response = await client.send(request, stream=True)
-            except httpx.TimeoutException as exc:
-                raise NccError("download_timeout", retryable=True) from exc
-            except httpx.HTTPError as exc:
-                raise NccError("download_unreachable", retryable=True) from exc
-
-            try:
-                if response.status_code == 404:
-                    raise RecordingNotAvailable(f"NCC has no recording for {identifier}")
-                if response.status_code != 200:
-                    raise _classify(response.status_code, where="download")
-                async for chunk in response.aiter_bytes(CHUNK_SIZE):
-                    yield chunk
-            finally:
-                await response.aclose()
 
 
 def _text(value: Any) -> str | None:

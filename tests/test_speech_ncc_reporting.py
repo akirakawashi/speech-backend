@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -28,7 +28,6 @@ from src.infrastructure.sources.ncc.reporting import (
 )
 from src.infrastructure.sources.ncc.source import (
     DailyBatchSource,
-    RecordingNotAvailable,
     build_daily_batch_source,
 )
 from src.setting.config import Settings
@@ -73,14 +72,6 @@ class _Fetch:
         return []
 
 
-class _Client:
-    async def download(self, session_id: str) -> AsyncIterator[bytes]:
-        if session_id == SID_C:
-            raise RecordingNotAvailable(session_id)
-        yield b"ID3"
-        yield session_id.encode()
-
-
 def _source(
     rows: Mapping[str, Sequence[Mapping[str, Any]]],
     views: Sequence[ReportingView] = (VOLNA,),
@@ -89,7 +80,6 @@ def _source(
     fetch = _Fetch(rows)
     source = ReportingViewSource(
         fetch=fetch,
-        client=_Client(),  # type: ignore[arg-type]
         views=views,
         timezone="Europe/Moscow",
         min_talk_seconds=min_talk_seconds,
@@ -255,7 +245,6 @@ async def test_a_database_failure_is_raised_not_turned_into_an_empty_day() -> No
 
     source = ReportingViewSource(
         fetch=broken,
-        client=_Client(),  # type: ignore[arg-type]
         views=(VOLNA,),
         timezone="Europe/Moscow",
         min_talk_seconds=10,
@@ -334,29 +323,6 @@ async def test_classifications_are_summed_across_views() -> None:
         ("", "Кошелек", "Консультация"): 2,
     }, "звонки без классификации пути не дают"
     assert [args for _, args in fetch.calls] == [(datetime(2026, 9, 14), datetime(2026, 9, 15))] * 2
-
-
-# --------------------------------------------------------------------------- #
-# Запись
-# --------------------------------------------------------------------------- #
-
-
-async def test_audio_comes_from_rest_by_session_id() -> None:
-    source, _ = _source({"calls_detail": [_row(SID_A)]})
-    (ref,) = await source.list_calls(date(2026, 9, 14))
-
-    chunks = [chunk async for chunk in await source.open_audio(ref)]
-
-    assert b"".join(chunks) == b"ID3" + SID_A.encode()
-
-
-async def test_a_missing_recording_is_reported_as_such() -> None:
-    source, _ = _source({"calls_detail": [_row(SID_C)]})
-    (ref,) = await source.list_calls(date(2026, 9, 14))
-
-    with pytest.raises(RecordingNotAvailable):
-        async for _ in await source.open_audio(ref):
-            pass
 
 
 def test_the_source_satisfies_the_port() -> None:
@@ -474,14 +440,13 @@ def test_the_factory_names_every_missing_setting() -> None:
         assert name in str(error.value)
 
 
-def test_the_factory_builds_the_reporting_view_source() -> None:
+def test_the_factory_builds_reporting_metadata_without_rest_credentials() -> None:
     settings = Settings(  # type: ignore[call-arg]
         _env_file=None,
         speech_ncc_source_kind="reporting_view",
         speech_ncc_reporting_database_url="postgresql://reader@ncc.example:5432/rep",
         speech_ncc_reporting_db_password="secret",
         speech_ncc_reporting_views="calls_detail=Волна,tss_7tel_calls_detail=7Телеком",
-        **REST,
     )
     source = build_daily_batch_source(settings)
 

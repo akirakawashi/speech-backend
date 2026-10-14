@@ -1,17 +1,10 @@
 """Сборка служебных сценариев без выполнения HTTP-запросов к моделям."""
 
-from typing import Annotated
-
-from fastapi import Depends, Header
-
 from src.application.quality.preparation import QualityPreparationService
-from src.application.quality.scheduling import WorkerMaintenanceService
-from src.application.worker_access import authorize_worker
 from src.domain.calls.schedule import CollectionSchedule
 from src.infrastructure.persistence.evaluation import PostgresEvaluationRepository
-from src.infrastructure.persistence.quality_jobs import PostgresQualityQueueRepository
 from src.infrastructure.persistence.session import get_speech_ms_sessionmaker
-from src.setting.config import Settings, get_settings
+from src.setting.config import Settings
 
 
 def build_quality_preparation(settings: Settings) -> QualityPreparationService:
@@ -20,21 +13,6 @@ def build_quality_preparation(settings: Settings) -> QualityPreparationService:
         PostgresEvaluationRepository(get_speech_ms_sessionmaker(settings)),
         model=settings.speech_quality_llm_model.strip(),
         max_tokens=settings.speech_quality_llm_max_tokens,
-    )
-
-
-async def maintenance_application(
-    settings: Annotated[Settings, Depends(get_settings)],
-    authorization: Annotated[str | None, Header()] = None,
-) -> WorkerMaintenanceService:
-    """Собрать политику расписания и порты коротких операций PostgreSQL."""
-    authorize_worker(settings.speech_worker_api_token, authorization)
-    sessions = get_speech_ms_sessionmaker(settings)
-    return WorkerMaintenanceService(
-        build_worker_schedule(settings),
-        PostgresQualityQueueRepository(sessions),
-        PostgresEvaluationRepository(sessions),
-        worker_token=settings.speech_worker_api_token,
     )
 
 

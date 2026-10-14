@@ -1,12 +1,15 @@
 """Сборка единого CPU-процесса бэкенда с локальными анализом и оценкой."""
 
 import asyncio
+from datetime import date
+from functools import partial
 
 from src.application.analysis.execution import AnalysisExecutionService
 from src.application.analysis.processing import AnalysisProcessingService
 from src.application.dto.calls import JobKind
 from src.application.dto.job_processing import SpeechProcessorOptions
 from src.application.errors.quality import QualityModelNotConfigured
+from src.application.ingestion.schedule import IntakeSchedule
 from src.application.ports.job_processing import (
     JobProcessingApplication,
     JobProcessingRecovery,
@@ -16,9 +19,12 @@ from src.application.quality.processing import EvaluationProcessingService
 from src.application.quality.processor_schedule import EvaluationProcessorSchedule
 from src.application.quality.scheduling import WorkerMaintenanceService
 from src.di.analysis import build_analysis_client
+from src.di.sources import build_ingest_source
 from src.di.worker_tasks import build_worker_schedule
 from src.infrastructure.clients.quality import build_quality_client
 from src.infrastructure.persistence.analysis_processing import PostgresAnalysisProcessingRepository
+from src.infrastructure.persistence.backfill import PostgresBackfillRepository
+from src.infrastructure.persistence.daily_ingest import PostgresDailyIngestRepository
 from src.infrastructure.persistence.evaluation import PostgresEvaluationRepository
 from src.infrastructure.persistence.evaluation_processing import (
     PostgresEvaluationProcessingRepository,
@@ -72,16 +78,36 @@ async def run_speech_processor(options: SpeechProcessorOptions, settings: Settin
                         policy,
                         PostgresQualityQueueRepository(sessions),
                         PostgresEvaluationRepository(sessions),
-                        worker_token="",
                     ),
                     policy,
                 )
+        queue = PostgresJobQueue(sessions, engine=engine)
+        intake_schedules: list[JobProcessingSchedule] = []
+        if not options.once and options.ingest_sources:
+            history_from = settings.speech_telphin_history_from.strip()
+            for source in options.ingest_sources:
+                intake_schedules.append(
+                    IntakeSchedule(
+                        source,
+                        build_worker_schedule(settings),
+                        PostgresDailyIngestRepository(
+                            sessions, queue, phone_pepper=settings.speech_phone_hash_pepper
+                        ),
+                        PostgresBackfillRepository(sessions),
+                        partial(build_ingest_source, source.value, settings),
+                        history_from=date.fromisoformat(history_from)
+                        if history_from and source.value == "telphin"
+                        else None,
+                        history_days=settings.speech_telphin_history_days_per_run,
+                    )
+                )
         processor = JobProcessor(
-            PostgresJobQueue(sessions, engine=engine),
+            queue,
             applications,
             lanes=options.lanes,
             recoveries=recoveries,
             schedule=schedule,
+            schedules=intake_schedules,
         )
         install_signal_handlers(processor)
         if options.once:

@@ -24,6 +24,7 @@ async def _run_backfill(args: argparse.Namespace) -> int:
     from src.setting.config import get_settings
 
     settings = get_settings()
+    engine = get_speech_ms_engine(settings)
     sessionmaker = get_speech_ms_sessionmaker(settings)
 
     async def _window_days() -> int:
@@ -33,29 +34,32 @@ async def _run_backfill(args: argparse.Namespace) -> int:
         return int(configured["backfill_window_days"])
 
     try:
-        if args.command == "start":
-            days = args.days if args.days is not None else await _window_days()
-            state = await start(sessionmaker, window_days=days, restart=args.restart)
-        elif args.command == "pause":
-            state = await set_paused(sessionmaker, paused=True)
-        elif args.command == "resume":
-            state = await set_paused(sessionmaker, paused=False)
-        elif args.command == "status":
-            state = await read_state(sessionmaker)
-        else:
-            report = await run_portion(
-                source=build_daily_batch_source(settings),
-                sessionmaker=sessionmaker,
-                queue=PostgresJobQueue(sessionmaker, engine=get_speech_ms_engine(settings)),
-                days=args.days,
-            )
-            print(report.describe())
-            return 0
-    except (BackfillNotStarted, RuntimeError) as exc:
-        print(str(exc))
-        return 1
-    print(state.describe())
-    return 0
+        try:
+            if args.command == "start":
+                days = args.days if args.days is not None else await _window_days()
+                state = await start(sessionmaker, window_days=days, restart=args.restart)
+            elif args.command == "pause":
+                state = await set_paused(sessionmaker, paused=True)
+            elif args.command == "resume":
+                state = await set_paused(sessionmaker, paused=False)
+            elif args.command == "status":
+                state = await read_state(sessionmaker)
+            else:
+                report = await run_portion(
+                    source=build_daily_batch_source(settings),
+                    sessionmaker=sessionmaker,
+                    queue=PostgresJobQueue(sessionmaker, engine=get_speech_ms_engine(settings)),
+                    days=args.days,
+                )
+                print(report.describe())
+                return 0
+        except (BackfillNotStarted, RuntimeError) as exc:
+            print(str(exc))
+            return 1
+        print(state.describe())
+        return 0
+    finally:
+        await engine.dispose()
 
 
 def run_backfill_command(args: argparse.Namespace) -> int:

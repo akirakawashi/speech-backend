@@ -1,13 +1,6 @@
 """Планирование обслуживания: правила и выбор звонков принадлежат бэкенду."""
 
-from datetime import UTC, datetime
-
-from src.application.dto.calls import CallSource
-from src.application.dto.daily_ingest import DayShare
 from src.application.dto.maintenance import (
-    CatchUpCommand,
-    MaintenancePlan,
-    MaintenanceRequest,
     QualityQueueReport,
     QualityQueueRequest,
 )
@@ -16,54 +9,23 @@ from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.ports.evaluation import EvaluationRepository
 from src.application.ports.maintenance import QualityQueueRepository
 from src.application.quality.batch import validate_selection
-from src.application.worker_access import authorize_worker
 from src.domain.calls.period import period_bounds
 from src.domain.calls.schedule import CollectionSchedule
 
 
 class WorkerMaintenanceService:
-    """Планировать приём и оценку; не скачивать аудио и не обращаться к LLM."""
+    """Локально выбирать готовые звонки и ставить оценку без HTTP и скачивания."""
 
     def __init__(
         self,
         schedule: CollectionSchedule,
         repository: QualityQueueRepository,
         evaluations: EvaluationRepository,
-        *,
-        worker_token: str,
     ) -> None:
-        """Принять политику расписания, порты хранения и служебный ключ."""
+        """Принять политику расписания и порты хранения."""
         self._schedule = schedule
         self._repository = repository
         self._evaluations = evaluations
-        self._worker_token = worker_token
-
-    def plan_authorized(
-        self, command: MaintenanceRequest, authorization: str | None, *, now: datetime | None = None
-    ) -> MaintenancePlan:
-        """Выдать следующий срок и параметры действия после проверки служебного доступа."""
-        authorize_worker(self._worker_token, authorization)
-        ingest = CatchUpCommand(
-            source=CallSource(command.action),
-            timezone=self._schedule.timezone,
-            priority=20 if command.action == "telphin" else None,
-            day_share=DayShare(
-                share=self._schedule.immediate_share,
-                night_from=self._schedule.night_from,
-                night_until=self._schedule.night_until,
-                timezone=self._schedule.timezone,
-            )
-            if command.action == "ncc"
-            else None,
-        )
-        instant = now or datetime.now(UTC)
-        run_at = self._schedule.next_run(command.action, instant, command.last_started)
-        return MaintenancePlan(
-            action=command.action,
-            run_at=run_at,
-            wait_seconds=max(0, (run_at - instant).total_seconds()),
-            ingest=ingest,
-        )
 
     async def enqueue(self, command: QualityQueueRequest) -> QualityQueueReport:
         """Локально выбрать готовый Телфин и поставить независимые задания без служебного HTTP."""

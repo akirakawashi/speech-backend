@@ -1,20 +1,8 @@
-"""Хранилище аудиозаписей: собственный MinIO в нашем контуре.
+"""Чтение аудио из MinIO для API, проверка объектов и удаление по команде хранения.
 
-Почему не переиспользуется `app/file_storage/`: тот клиент **только читает**, и
-это не случайность его реализации — сервисная учётная запись корпоративного
-хранилища read-only на стороне провайдера, запись там отказана. Speech Analytics
-пишет, значит у него своё хранилище, свой бакет и свои ключи.
-
-Подпись запросов переиспользуется целиком (`src/infrastructure/storage/signing.py`):
-SigV4 написан руками, чтобы не тянуть botocore ради одного протокола, и
-переписывать его второй раз незачем.
-
-Раскладка ключей повторяет то, как это делает сам NCC:
-
-    calls/ГГГГ/ММ/ДД/<sessionId>.mp3
-
-Ключ детерминирован, поэтому повторное скачивание перезаписывает объект, а не
-плодит копии — на этом стоит идемпотентность этапа скачивания.
+Оригиналы загружает отдельный speech-worker. Этот адаптер подписывает запросы
+SigV4, передаёт Range плеера и нормализует отказы без тела ответа провайдера.
+Ключи сохраняют формат calls/ГГГГ/ММ/ДД/<sessionId>.mp3.
 """
 
 from __future__ import annotations
@@ -35,18 +23,6 @@ from src.application.errors.external import (
     StorageNotConfiguredError as StorageNotConfiguredError,
 )
 from src.infrastructure.storage.signing import canonical_uri, sign_request
-
-#: Разумный потолок на размер одной записи.
-#:
-#: Замер 61 настоящей записи: средний размер 730 КБ, самая длинная (14 минут
-#: 46 секунд) — 2,6 МБ, битрейт 24 кбит/с. Часовой разговор при таком битрейте
-#: весит около 11 МБ. Потолок в 256 МБ выше всего мыслимого на порядок и стоит
-#: здесь не ради экономии памяти, а чтобы источник, отдавший вместо записи
-#: что-то другое, не съел память воркера целиком.
-MAX_OBJECT_BYTES = 256 * 1024 * 1024
-
-#: Тип содержимого записей NCC. Проверено на выгрузке: MPEG-2 Layer III.
-AUDIO_CONTENT_TYPE = "audio/mpeg"
 
 
 class StorageConfig(BaseModel):
@@ -133,7 +109,7 @@ def _safe_part(value: str, *, what: str) -> str:
 
 
 class SpeechAudioStorage:
-    """Запись, чтение и удаление аудио в собственном бакете."""
+    """Чтение, проверка и удаление аудио; новые записи загружает speech-worker."""
 
     def __init__(self, config: StorageConfig, *, client: httpx.AsyncClient | None = None) -> None:
         """Настроить SpeechAudioStorage из переданных параметров и зависимостей."""
@@ -181,39 +157,6 @@ class SpeechAudioStorage:
     def _url(self, key: str) -> str:
         """Построить адрес объекта в настроенной корзине."""
         return f"{self._config.scheme}://{self._config.host}{self._uri(key)}"
-
-    async def put(self, key: str, chunks: AsyncIterator[bytes]) -> int:
-        """Положить объект. Возвращает записанный размер в байтах.
-
-        Содержимое собирается в память, а не передаётся потоком. Подпись SigV4
-        включает хеш тела, а посчитать его, не прочитав тело целиком, нельзя —
-        либо буфер, либо `UNSIGNED-PAYLOAD`, который снимает проверку
-        целостности. При измеренных размерах записей (в среднем 730 КБ,
-        максимум единицы мегабайт) буфер честнее.
-        """
-        body = bytearray()
-        async for chunk in chunks:
-            body.extend(chunk)
-            if len(body) > MAX_OBJECT_BYTES:
-                raise StorageError(
-                    f"object exceeds {MAX_OBJECT_BYTES} bytes; a call recording of that "
-                    "size means the source returned something other than a recording"
-                )
-        payload = bytes(body)
-        digest = hashlib.sha256(payload).hexdigest()
-        headers = self._headers("PUT", key, digest)
-        headers["Content-Type"] = AUDIO_CONTENT_TYPE
-
-        async with self._http() as client:
-            try:
-                response = await client.put(self._url(key), content=payload, headers=headers)
-            except httpx.HTTPError as exc:
-                raise StorageError(f"storage unreachable while writing {key}") from exc
-        if response.status_code not in (200, 201):
-            # Код, но не тело: ответ хранилища может содержать имя бакета,
-            # ключи и внутренние адреса.
-            raise StorageError(f"storage refused the write of {key}: HTTP {response.status_code}")
-        return len(payload)
 
     @asynccontextmanager
     async def open(

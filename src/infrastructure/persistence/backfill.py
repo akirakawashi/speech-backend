@@ -34,6 +34,9 @@ _START = text(
            backfill_paused = FALSE,
            backfill_done = FALSE,
            updated_at = now()
+    WHERE :restart OR speech_ingest_cursors.backfill_cursor IS NULL
+          OR speech_ingest_cursors.backfill_done
+    RETURNING source
     """
 )
 
@@ -52,6 +55,9 @@ _ADVANCE = text(
            backfill_done = :done,
            updated_at = now()
      WHERE source = :source
+       AND backfill_from = :expected_from AND backfill_until = :expected_until
+       AND backfill_cursor = :expected_cursor AND backfill_paused = :expected_paused
+       AND backfill_done = :expected_done
     """
 )
 
@@ -118,10 +124,17 @@ class PostgresBackfillRepository:
         """Прочитать курсор и сразу закрыть сессию."""
         return await read_state(self._sessions, cursor=cursor)
 
-    async def open_window(self, cursor: str, first: datetime, until: datetime) -> BackfillState:
+    async def open_window(
+        self, cursor: str, first: datetime, until: datetime, *, restart: bool = False
+    ) -> BackfillState:
         """Записать уже проверенное окно и вернуть сохранённое состояние."""
         async with self._sessions() as session, session.begin():
-            await session.execute(_START, {"source": cursor, "from_ts": first, "until_ts": until})
+            changed = await session.scalar(
+                _START,
+                {"source": cursor, "from_ts": first, "until_ts": until, "restart": restart},
+            )
+            if changed is None:
+                raise RuntimeError("разбор истории уже идёт; для замены окна нужен --restart")
         return await self.read_state(cursor)
 
     async def pause(self, paused: bool) -> BackfillState:
@@ -129,10 +142,24 @@ class PostgresBackfillRepository:
         async with self._sessions() as session, session.begin():
             return await set_paused_in(session, paused=paused)
 
-    async def advance(self, cursor: str, to: datetime, done: bool) -> BackfillState:
+    async def advance(
+        self, cursor: str, to: datetime, done: bool, *, expected: BackfillState
+    ) -> BackfillState:
         """Записать переданные сценариями курсор и признак завершения."""
         async with self._sessions() as session, session.begin():
-            await session.execute(_ADVANCE, {"source": cursor, "cursor": to, "done": done})
+            await session.execute(
+                _ADVANCE,
+                {
+                    "source": cursor,
+                    "cursor": to,
+                    "done": done,
+                    "expected_from": expected.window_from,
+                    "expected_until": expected.window_until,
+                    "expected_cursor": expected.cursor,
+                    "expected_paused": expected.paused,
+                    "expected_done": expected.done,
+                },
+            )
         return await self.read_state(cursor)
 
     async def default_window_days(self) -> int:

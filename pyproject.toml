@@ -1,7 +1,7 @@
 [project]
 name = "speech-backend"
 version = "0.1.0"
-description = "Speech analytics API and database migrations."
+description = "Speech API, call intake, CPU analysis, evaluation and database migrations."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,6 +21,8 @@ dependencies = [
 [project.scripts]
 speech-analyze = "src.presentation.cli.analysis_processor:main"
 speech-process = "src.presentation.cli.speech_processor:main"
+speech-ingest = "src.presentation.cli.daily_ingest:main"
+speech-backfill = "src.presentation.cli.backfill:main"
 speech-evaluate = "src.presentation.cli.evaluate:main"
 speech-reanalyze = "src.presentation.cli.reanalyze:main"
 speech-fill-reasons = "src.presentation.cli.fill_reasons:main"

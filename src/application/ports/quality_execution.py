@@ -1,13 +1,11 @@
 """Порты подготовки и выполнения оценки; воркер не определяет её правила."""
 
-from typing import Protocol, runtime_checkable
-from uuid import UUID
+from typing import Protocol
 
 from src.application.dto.quality_execution import (
     QualityModelRequest,
     QualityStep,
     QualityStepRequest,
-    QualityWork,
 )
 
 
@@ -24,13 +22,4 @@ class QualityCompletion(Protocol):
 
     async def complete(self, request: QualityModelRequest) -> str:
         """Вернуть исходный ответ модели либо нормализованный QualityModelError."""
-        ...
-
-
-@runtime_checkable
-class QualityExecutor(Protocol):
-    """Выполнить модельные шаги одного арендованного задания без записи в базу."""
-
-    async def evaluate(self, call_id: UUID, *, attempts: int, max_attempts: int) -> QualityWork:
-        """Вернуть итог; повторяемый сетевой отказ выражается через StageError."""
         ...

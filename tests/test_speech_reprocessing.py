@@ -23,14 +23,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from src.application.admin.service import AdminService
 from src.application.dto.admin_operations import ReprocessCallQuery, RetryJobQuery
 from src.application.errors.requests import ApplicationError, ErrorKind
-from src.application.pipeline.stages import StageHandler, StageRegistry, StageResult
 from src.application.ports.queue import NewJob, ReprocessingCallNotFound, ReprocessingConflict
-from src.di.pipeline import build_stage_deps
 from src.domain.calls.contracts import (
-    SPEECH_NEXT_JOB_KIND,
     JobKind,
     JobLane,
-    ProcessingStatus,
     RoleMethod,
 )
 from src.infrastructure.persistence import (
@@ -49,7 +45,6 @@ from src.infrastructure.persistence.models.speech import (
 )
 from src.infrastructure.queue import postgres as postgres
 from src.infrastructure.queue.postgres import PostgresJobQueue
-from src.infrastructure.queue.worker import Worker
 from src.presentation.http.auth import Principal
 from src.setting.config import Settings
 
@@ -578,40 +573,8 @@ async def _snapshot(sessions):
         }
 
 
-class _ReplayStage(StageHandler[None]):
-    """Real Worker/queue transactions with deterministic, offline stage bodies."""
-
-    def __init__(self, kind: JobKind, seen: list[JobKind]) -> None:
-        # `kind` объявлен у `StageHandler` переменной класса; присваивание через
-        # экземпляр здесь намеренно — подделка регистрирует по одному обработчику
-        # на этап, — и тип от этого не меняется.
-        self.kind = kind  # type: ignore[misc]
-        self.seen = seen
-
-    async def work(self, job, deps):
-        self.seen.append(job.kind)
-
-    async def store(self, persistence, job, work):
-        session = persistence._session
-        next_kind = SPEECH_NEXT_JOB_KIND[job.kind]
-        if next_kind is None:
-            await session.execute(
-                text(
-                    "UPDATE speech_calls SET summary = 'replayed', analysis_status = 'done' "
-                    "WHERE id = :id"
-                ),
-                {"id": job.call_id},
-            )
-        return StageResult(
-            processing_status=ProcessingStatus.DONE
-            if next_kind is None
-            else ProcessingStatus.TRANSCRIBING,
-            next_kind=next_kind,
-        )
-
-
 @pytest.mark.parametrize("kind", list(JobKind))
-async def test_postgres_completed_pipeline_replays_to_completion(pg, kind):
+async def test_postgres_completed_pipeline_queues_the_requested_stage(pg, kind):
     sessions, queue = pg
     call_id, ids = await _completed_pipeline(sessions)
     async with sessions() as session:
@@ -642,39 +605,6 @@ async def test_postgres_completed_pipeline_replays_to_completion(pg, kind):
     )
     assert (state["speech_calls"][0]["completed_at"] is None) == (kind is not JobKind.EVALUATE)
     assert len(state["speech_audit_events"]) == 1
-
-    seen: list[JobKind] = []
-    registry = StageRegistry()
-    for stage in JobKind:
-        registry.register(_ReplayStage(stage, seen))
-    worker = Worker(
-        queue,
-        registry,
-        build_stage_deps(settings=None, sessionmaker=sessions),
-        lanes=[JobLane.DAILY],
-        worker_id="replay-worker",
-    )
-    expected = []
-    current = kind
-    while current is not None:
-        expected.append(current)
-        current = SPEECH_NEXT_JOB_KIND[current]
-    for _stage in expected:
-        assert await worker.run_once()
-    assert not await worker.run_once()
-    assert seen == expected
-    state = await _snapshot(sessions)
-    assert {row["kind"] for row in state["speech_jobs"]} == {
-        row["kind"] for row in rows.values()
-    } | {stage.value for stage in expected}
-    assert all(row["status"] == "done" for row in state["speech_jobs"])
-    call = state["speech_calls"][0]
-    assert call["completed_at"] is not None
-    assert (call["processing_status"], call["analysis_status"], call["summary"]) == (
-        "done",
-        "done",
-        "replayed",
-    )
 
 
 @pytest.mark.parametrize("active_kind", list(JobKind))

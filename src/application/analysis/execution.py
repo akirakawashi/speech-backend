@@ -13,8 +13,8 @@ from src.application.dto.pipeline import AnalyzeWork
 from src.application.dto.pipeline_input import AnalysisInput
 from src.application.errors.analysis import InvalidAnalysisOutput
 from src.application.errors.external import AnalysisError, AnalysisNotConfigured
-from src.application.pipeline.stages import StageError
-from src.application.ports.recordings import AnalysisBackend
+from src.application.errors.stages import StageError
+from src.application.ports.analysis import AnalysisBackend
 from src.domain.calls.classifier import ClassifierIndex
 from src.domain.calls.contracts import JobErrorClass, RoleMethod
 from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, prompt_reasons

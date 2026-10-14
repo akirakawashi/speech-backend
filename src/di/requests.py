@@ -18,8 +18,8 @@ from src.application.media.service import MediaService
 from src.application.quality_read.service import QualityReadService
 from src.application.reports.service import ReportsService
 from src.application.system.service import SystemService
+from src.di.ingest_control import ingest_control_application
 from src.di.transcription_delivery import transcription_delivery_application
-from src.di.worker_tasks import maintenance_application
 from src.infrastructure.auth.identity import KeycloakIdentityGateway
 from src.infrastructure.persistence.admin_operations import PostgresAdminRepository
 from src.infrastructure.persistence.calls_operations import PostgresCallsRepository
@@ -33,10 +33,10 @@ from src.infrastructure.runtime.system import PostgresSystemProbe
 from src.infrastructure.storage.audio_access import StorageAudioReader
 from src.infrastructure.storage.recordings import build_storage
 from src.presentation.http.deps import system_dep, use_cases_dep
+from src.presentation.http.ingest_control import ingest_control_dep
 from src.presentation.http.responses import application_error_response
 from src.presentation.http.transcription_results import transcription_delivery_dep
 from src.presentation.http.validation import internal_validation_error_response
-from src.presentation.http.worker_tasks import maintenance_dep
 from src.setting.config import Settings, get_settings
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -88,6 +88,6 @@ def install_dependencies(app: FastAPI) -> None:
     app.dependency_overrides[use_cases_dep] = request_application
     app.dependency_overrides[system_dep] = system_application
     app.dependency_overrides[transcription_delivery_dep] = transcription_delivery_application
-    app.dependency_overrides[maintenance_dep] = maintenance_application
+    app.dependency_overrides[ingest_control_dep] = ingest_control_application
     app.exception_handler(ApplicationError)(application_error_response)
     app.exception_handler(RequestValidationError)(internal_validation_error_response)

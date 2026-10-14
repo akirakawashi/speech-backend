@@ -95,6 +95,8 @@ async def run_day(
                 seen = latest_call.get(project_id)
                 if seen is None or ref.started_at > seen:
                     latest_call[project_id] = ref.started_at
+            if await transaction.has_ingest(call_id):
+                continue
             later = (
                 day_share is not None and night is not None and (draw.random() >= day_share.share)
             )
@@ -139,6 +141,7 @@ async def catch_up(
     day_share: DayShare | None = None,
     priority: int | None = None,
     history: BackfillRepository,
+    now: datetime | None = None,
 ) -> list[str]:
     """Прогон таймера: вчера и сегодня, потом порция истории.
 
@@ -165,6 +168,7 @@ async def catch_up(
             call_source=call_source,
             day_share=day_share,
             priority=priority,
+            now=now,
         )
         lines.append(report.describe())
     if history_from is None or history_from >= today:

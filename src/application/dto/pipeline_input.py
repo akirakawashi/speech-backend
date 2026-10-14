@@ -24,17 +24,6 @@ class CallForIngest(BaseModel):
     project_product: str | None = None
 
 
-class CallForTranscription(BaseModel):
-    """Сведения о сохранённой записи, которую предстоит распознать."""
-
-    model_config = ConfigDict(frozen=True)
-    session_id: str
-    audio_status: str
-    audio_object_key: str | None
-    audio_channels: int | None = None
-    duration_s: float | None = None
-
-
 class CallForAnalysis(BaseModel):
     """Наличие звонка и метод определения ролей его расшифровки."""
 

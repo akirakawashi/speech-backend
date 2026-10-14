@@ -52,25 +52,6 @@ RUN uv pip check && speech-process --help
 USER 10001:10001
 CMD ["speech-process"]
 
-# Совместимая сборка сохранённых команд. Основной воркер собирается отдельно
-# в speech-worker; удаление прежнего кода в эту задачу не входит.
-FROM source AS speech-worker
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y ffmpeg \
-    && rm -rf /var/lib/apt/lists/* \
-    && uv pip check \
-    && python -c "from src.presentation.cli.worker import main; assert main" \
-    && python -c "from src.presentation.cli.daily_ingest import main; assert main" \
-    && ffmpeg -version > /dev/null
-
-ARG GIT_COMMIT=unknown
-ARG BUILD_TIME=unknown
-ENV AICISTENT_GIT_COMMIT=$GIT_COMMIT \
-    AICISTENT_BUILD_TIME=$BUILD_TIME
-
-USER 10001:10001
-CMD ["python", "-m", "src.presentation.cli.worker", "--lanes", "daily"]
-
 FROM source AS migrations
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --group migrations --no-editable

@@ -1,8 +1,8 @@
-"""Контракт источника звонков и потока записи."""
+"""Контракт перечисления метаданных звонков без получения аудио."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from datetime import date
 from typing import Protocol, runtime_checkable
 
@@ -24,17 +24,5 @@ class DailyBatchSource(Protocol):
         Порядок не важен, дубли недопустимы. Пустой результат — валидный ответ
         (выходной день), он не должен отличаться от ошибки на уровне типа:
         ошибка обязана быть исключением.
-        """
-        ...
-
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:
-        """Байты аудио потоком.
-
-        Потоком, а не целиком: запись на час — это десятки мегабайт, и читать
-        её в память ради того, чтобы тут же выложить в хранилище, незачем.
-
-        Отсутствие записи выражается `RecordingNotAvailable` и **только им**.
-        Любое другое исключение означает, что источник сломан, а не что записи
-        нет, — и обрабатывается по-другому.
         """
         ...

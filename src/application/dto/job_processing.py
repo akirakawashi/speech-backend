@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.application.dto.calls import JobErrorClass, JobKind, JobLane
+from src.application.dto.calls import CallSource, JobErrorClass, JobKind, JobLane
 from src.application.ports.queue import ClaimedJob
 from src.domain.calls.job_processing import (
     JobProcessingClaim as JobProcessingClaim,
@@ -48,6 +48,15 @@ class SpeechProcessorOptions(JobProcessorOptions):
 
     stages: tuple[JobKind, ...] = Field(default=(JobKind.ANALYZE, JobKind.EVALUATE), min_length=1)
     schedule_evaluations: bool = True
+    ingest_sources: tuple[CallSource, ...] = (CallSource.NCC, CallSource.TELPHIN)
+
+    @field_validator("ingest_sources", mode="before")
+    @classmethod
+    def parse_ingest_sources(cls, value: Any) -> Any:
+        """Прочитать источники через запятую; пустая строка отключает автоматический приём."""
+        if isinstance(value, str):
+            return tuple(dict.fromkeys(part.strip() for part in value.split(",") if part.strip()))
+        return value
 
     @field_validator("stages", mode="before")
     @classmethod

@@ -1,6 +1,6 @@
-"""Телфин — второй источник звонков (фича 14): разбор `call_history`, запись, приём.
+"""Телфин: разбор метаданных `call_history` и суточный приём.
 
-Разбор и скачивание — без сети: ответы API и хранилища подставные, в форме,
+Разбор — без сети: ответы API подставные, в форме,
 снятой разведкой 2026-09-28. Приём — на настоящем Postgres, если задан
 `SPEECH_POSTGRES_TEST_URL`.
 """
@@ -11,18 +11,15 @@ from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.di.ingestion import run_day
-from src.di.sources import RoutingSource
 from src.domain.calls.phone import mask_phone_number
 from src.infrastructure.queue.postgres import PostgresJobQueue
 from src.infrastructure.reports import calls as report
-from src.infrastructure.sources.ncc.source import CallRef, RecordingNotAvailable
-from src.infrastructure.sources.telphin.client import TelphinError
+from src.infrastructure.sources.ncc.source import CallRef
 from src.infrastructure.sources.telphin.source import (
     PROJECT_KEY,
     TelphinSource,
@@ -71,7 +68,7 @@ def _source(**kwargs: Any) -> TelphinSource:
         "excluded_extensions": frozenset({"13240*000", "13240*444"}),
         "excluded_groups": frozenset({22001}),
     }
-    return TelphinSource(None, **{**defaults, **kwargs})
+    return TelphinSource(_Pages(()), **{**defaults, **kwargs})
 
 
 def test_moscow_day_is_asked_in_utc() -> None:
@@ -167,65 +164,6 @@ async def test_list_calls_reads_pages_until_a_short_one() -> None:
     assert len(refs) == 4
 
 
-def _storage(status: int, body: bytes = b"ID3audio") -> httpx.AsyncClient:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert "authorization" not in request.headers  # ссылка без токена
-        return httpx.Response(status, content=body)
-
-    return httpx.AsyncClient(transport=httpx.MockTransport(handler))
-
-
-def _stored_ref(url: str | None = STORAGE) -> CallRef:
-    return CallRef(
-        session_id="telphin:X", audio_locator="rec", day=DAY, source="telphin", audio_url=url
-    )
-
-
-async def test_the_recording_comes_from_the_storage_link() -> None:
-    source = _source(download=_storage(200))
-    chunks = await source.open_audio(_stored_ref())
-    assert b"".join([chunk async for chunk in chunks]) == b"ID3audio"
-
-
-@pytest.mark.parametrize("status", [404, 410])
-async def test_a_missing_recording_is_not_a_failure(status: int) -> None:
-    with pytest.raises(RecordingNotAvailable):
-        await _source(download=_storage(status)).open_audio(_stored_ref())
-
-
-async def test_no_link_means_no_recording_until_the_day_is_taken_again() -> None:
-    with pytest.raises(RecordingNotAvailable):
-        await _source().open_audio(_stored_ref(url=None))
-
-
-async def test_a_refused_download_is_a_failure_that_does_not_leak_the_link() -> None:
-    with pytest.raises(TelphinError) as caught:
-        await _source(download=_storage(403)).open_audio(_stored_ref())
-    assert "opaque-token" not in str(caught.value)
-
-
-async def test_the_worker_routes_a_call_to_its_source() -> None:
-    class _Fake:
-        name = "fake"
-
-        def __init__(self, tag: bytes) -> None:
-            self.tag = tag
-
-        async def list_calls(self, day: date) -> Sequence[CallRef]:  # pragma: no cover
-            return ()
-
-        async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:
-            async def _one() -> AsyncIterator[bytes]:
-                yield self.tag
-
-            return _one()
-
-    routing = RoutingSource({"ncc": _Fake(b"ncc"), "telphin": _Fake(b"telphin")})
-    for source in ("ncc", "telphin"):
-        ref = CallRef(session_id="s", audio_locator="a", day=DAY, source=source)
-        assert [chunk async for chunk in await routing.open_audio(ref)] == [source.encode()]
-
-
 # --------------------------------------------------------------------------- #
 # Приём на живой базе
 
@@ -241,9 +179,6 @@ class _Day:
 
     async def list_calls(self, day: date) -> Sequence[CallRef]:
         return self._refs
-
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:  # pragma: no cover
-        raise AssertionError("суточный прогон записи не скачивает")
 
 
 Env = tuple[async_sessionmaker[AsyncSession], PostgresJobQueue]
@@ -385,9 +320,6 @@ class _EveryDay:
                 source="telphin",
             )
         ]
-
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:  # pragma: no cover
-        raise AssertionError("суточный прогон записи не скачивает")
 
 
 @live

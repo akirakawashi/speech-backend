@@ -12,7 +12,7 @@ from src.application.dto.quality_execution import (
     QualityWork,
 )
 from src.application.errors.quality import QualityModelError
-from src.application.pipeline.stages import StageError
+from src.application.errors.stages import StageError
 from src.application.quality.evaluation import (
     MAX_OUTPUT_ATTEMPTS,
     QualityError,

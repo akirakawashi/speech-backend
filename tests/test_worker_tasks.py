@@ -1,20 +1,17 @@
 """Расписание приёма и локальные шаги оценки принадлежат бэкенду."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import httpx
 import pytest
 from pydantic import ValidationError
 
-from src.application.dto.maintenance import MaintenanceRequest
 from src.application.dto.quality_batch import LineSnapshot
 from src.application.dto.quality_execution import QualityStepRequest
 from src.application.errors.requests import ApplicationError, ErrorKind
 from src.application.quality.preparation import QualityPreparationService
-from src.application.quality.scheduling import WorkerMaintenanceService
 from src.di.http import create_app
 from src.domain.calls.schedule import CollectionSchedule
 from src.setting.config import Settings
@@ -23,30 +20,6 @@ from tests.test_speech_quality import LINES, _answer
 NOW = datetime(2026, 10, 12, 9, tzinfo=UTC)
 TOKEN = "test-service-token"
 AUTHORIZATION = f"Bearer {TOKEN}"
-
-
-@pytest.mark.parametrize("action", ["ncc", "telphin"])
-def test_maintenance_plan_returns_server_wait_and_ready_parameters(action) -> None:
-    """Бэкенд задаёт ожидание и готовые параметры независимо от часов воркера."""
-    service = WorkerMaintenanceService(
-        CollectionSchedule(), AsyncMock(), AsyncMock(), worker_token=TOKEN
-    )
-    now = NOW + timedelta(minutes=3)
-    plan = service.plan_authorized(
-        MaintenanceRequest(action=action, last_started=NOW), AUTHORIZATION, now=now
-    )
-    if action == "telphin":
-        assert plan.wait_seconds == 7 * 3600 - 3 * 60
-        assert plan.run_at == NOW + timedelta(hours=7)
-        assert plan.ingest is not None
-        assert plan.ingest.source.value == "telphin" and plan.ingest.priority == 20
-        assert plan.ingest.day_share is None and plan.evaluation is None
-    else:
-        assert plan.wait_seconds == 12 * 60
-        assert plan.run_at == NOW + timedelta(minutes=15)
-        assert plan.ingest is not None and plan.ingest.day_share is not None
-        assert plan.ingest.source.value == "ncc"
-        assert plan.ingest.day_share.share == 0.5 and plan.evaluation is None
 
 
 @pytest.fixture
@@ -160,51 +133,10 @@ def test_telphin_intake_runs_only_at_night(hour, expected) -> None:
     assert result.hour == expected
 
 
-@pytest.mark.parametrize(
-    "route,body",
-    [
-        ("worker-plan", {"action": "ncc"}),
-    ],
-)
-@pytest.mark.parametrize(
-    "configured,authorization,status",
-    [
-        ("", None, 503),
-        (TOKEN, None, 401),
-        (TOKEN, "Bearer wrong", 401),
-    ],
-)
-async def test_internal_routes_reject_access_before_database_creation(
-    route, body, configured, authorization, status
-) -> None:
-    """Неверный ключ проверяется даже без адреса базы; служебные роуты скрыты из OpenAPI."""
-    app = create_app(
-        Settings(
-            _env_file=None,
-            app_env="local",
-            speech_auth_mode="open",
-            speech_worker_api_token=configured,
-        )
-    )
-    assert not any(path.startswith("/internal/") for path in app.openapi()["paths"])
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://backend"
-    ) as client:
-        response = await client.post(
-            f"/internal/v1/{route}",
-            json=body,
-            headers={"Authorization": authorization} if authorization else {},
-        )
-    assert response.status_code == status
-    assert "wrong" not in response.text
-
-
 def test_continuation_requires_original_snapshot_and_contract_version() -> None:
     """Несогласованный служебный DTO отсекается до выполнения сценария."""
     with pytest.raises(ValidationError):
         QualityStepRequest(call_id=uuid4(), responses=("answer",))
-    with pytest.raises(ValidationError):
-        MaintenanceRequest(action="ncc", contract_version="2.0")
 
 
 def test_invalid_night_window_is_rejected_at_api_startup() -> None:

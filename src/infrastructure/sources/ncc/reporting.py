@@ -1,7 +1,6 @@
 """Источник суточного пакета: представления отчётной базы NCC.
 
-Список звонков берётся из представлений в отчётной базе поставщика, запись —
-тем же REST, что и у остальных источников (`callrecord/download`). Вариант
+Список звонков берётся из представлений в отчётной базе поставщика. Вариант
 предложил поставщик после того, как перечисление сессий через API было
 опровергнуто (SP-001a); доступ на чтение выдан, решение владельца 2026-09-15.
 
@@ -32,19 +31,16 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Final
+from typing import Any, Final
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
 from src.infrastructure.persistence.classifier import classifier_levels
 from src.infrastructure.sources.ncc.source import SESSION_ID_RE, CallRef
-
-if TYPE_CHECKING:
-    from src.infrastructure.sources.ncc.rest import NccRestClient
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +162,6 @@ class ReportingViewSource:
         self,
         *,
         fetch: Fetch,
-        client: NccRestClient,
         views: Sequence[ReportingView],
         timezone: str,
         min_talk_seconds: int,
@@ -178,7 +173,6 @@ class ReportingViewSource:
                 "as <view>=<project>"
             )
         self._fetch = fetch
-        self._client = client
         self._views = tuple(views)
         self._tz = ZoneInfo(timezone)
         self._min_talk = Decimal(min_talk_seconds)
@@ -264,14 +258,6 @@ class ReportingViewSource:
         if moment.tzinfo is None:
             return moment.replace(tzinfo=self._tz)
         return moment.astimezone(self._tz)
-
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:
-        """Запись по идентификатору сессии, тем же REST, что у `sequence`.
-
-        `RecordingNotAvailable` из клиента проходит наверх как есть: отличать
-        «записи нет» от «источник сломан» — обязанность этапа скачивания.
-        """
-        return self._client.download(ref.session_id)
 
 
 def asyncpg_fetcher(

@@ -24,8 +24,10 @@ from src.setting.config import Settings
 # has one revision rather than a set of branch heads. Readiness checks it
 # because a process answering `ready` on a schema it cannot use is a process
 # that fails every request while looking healthy.
-SPEECH_REQUIRED_SCHEMA_REVISION: str = "sp_0016_evaluation_jobs"
+SPEECH_REQUIRED_SCHEMA_REVISION: str = "sp_0017_analysis_storage"
 _SPEECH_REQUIRED_TABLES = (
+    "speech_analysis_references",
+    "speech_call_analyses",
     "speech_calls",
     "speech_call_reasons",
     "speech_classifier_nodes",

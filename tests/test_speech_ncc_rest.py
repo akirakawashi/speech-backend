@@ -25,7 +25,6 @@ from src.infrastructure.sources.ncc.rest import (
     NccRestClient,
     build_ncc_rest_client,
 )
-from src.infrastructure.sources.ncc.source import RecordingNotAvailable
 
 SESSION_ID = "node_1_domain_2_nauss_0_1766092829_1138986"
 
@@ -93,7 +92,7 @@ async def test_the_request_carries_the_api_key_headers() -> None:
     assert seen["url"] == "https://ncc/api/v2/employees?removed=false"
 
 
-async def test_the_audio_request_declares_the_audio_type() -> None:
+async def test_metadata_head_declares_the_audio_type() -> None:
     """Руководство требует объявлять тип возвращаемых данных заголовком.
 
     Даже у `GET`, где тела запроса нет: это их правило, а не наше прочтение
@@ -102,16 +101,17 @@ async def test_the_audio_request_declares_the_audio_type() -> None:
     seen: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "HEAD"
         seen["headers"] = request.headers
         seen["url"] = str(request.url)
-        return httpx.Response(200, content=b"\x00\x01")
+        return httpx.Response(200)
 
-    chunks = [chunk async for chunk in _client(handler).download(SESSION_ID)]
+    head = await _client(handler).head_recording(SESSION_ID)
 
     assert seen["headers"]["Content-Type"] == "audio/mpeg"
     assert seen["headers"]["Accept"] == "audio/mpeg"
     assert f"sessionId={SESSION_ID}" in seen["url"]
-    assert b"".join(chunks) == b"\x00\x01"
+    assert head.exists is True
 
 
 # --------------------------------------------------------------------------- #
@@ -119,21 +119,13 @@ async def test_the_audio_request_declares_the_audio_type() -> None:
 # --------------------------------------------------------------------------- #
 
 
-async def test_a_missing_recording_speaks_the_language_of_the_port() -> None:
-    """`404` превращается в `RecordingNotAvailable`, а не в общий отказ.
-
-    Этап приёма обязан отличать «записи нет» от «источник сломан»: первое после
-    нескольких попыток означает, что записи не будет вовсе (ING-04), второе —
-    что надо повторять. Приезжай `404` обычным `NccError`, этап считал бы
-    отсутствием записи любую поломку.
-    """
+async def test_metadata_head_distinguishes_missing_recording() -> None:
+    """HEAD возвращает отсутствие метаданных; обработку задания решает ingest API."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"detail": "not found"})
 
-    with pytest.raises(RecordingNotAvailable):
-        async for _ in _client(handler).download(SESSION_ID):
-            pass
+    assert (await _client(handler).head_recording(SESSION_ID)).exists is False
 
 
 async def test_a_malformed_session_id_is_refused_before_the_request() -> None:
@@ -150,25 +142,11 @@ async def test_a_malformed_session_id_is_refused_before_the_request() -> None:
         return httpx.Response(200, content=b"")
 
     with pytest.raises(NccError) as failure:
-        async for _ in _client(handler).download("../../etc/passwd"):
-            pass
+        await _client(handler).head_recording("../../etc/passwd")
 
-    assert failure.value.reason == "download_bad_session_id"
+    assert failure.value.reason == "head_bad_session_id"
     assert failure.value.retryable is False
     assert not called, "запрос ушёл, хотя идентификатор заведомо не тот"
-
-
-async def test_a_large_recording_arrives_in_pieces() -> None:
-    """Потоком, а не целиком: запись на час — десятки мегабайт."""
-    payload = b"x" * (3 << 20)
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=payload)
-
-    chunks = [chunk async for chunk in _client(handler).download(SESSION_ID)]
-
-    assert b"".join(chunks) == payload
-    assert len(chunks) > 1, "запись приехала одним куском — читалась в память целиком"
 
 
 # --------------------------------------------------------------------------- #
@@ -210,7 +188,7 @@ async def test_an_unreachable_host_is_worth_repeating() -> None:
 
 
 async def test_the_failure_carries_no_response_body() -> None:
-    """У `download` в теле запись разговора, у справочника — имена сотрудников."""
+    """Ошибки справочника не возвращают имена сотрудников из ответа."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"detail": "Иванов Иван Иванович"})

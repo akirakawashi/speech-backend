@@ -19,8 +19,8 @@ from src.application.dto.pipeline_input import AnalysisSegment
 from src.application.dto.reasons import FillReport, ReasonAnswer, ReasonSelection
 from src.application.errors.external import AnalysisError
 from src.application.errors.reasons import ReasonsNotConfigured
+from src.application.ports.analysis import AnalysisBackend
 from src.application.ports.reasons import ReasonRepository
-from src.application.ports.recordings import AnalysisBackend
 from src.domain.calls.reasons import REASONS_PROMPT_LIMIT, interpret_reason, prompt_reasons
 
 logger = logging.getLogger(__name__)

@@ -22,12 +22,11 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.application.pipeline.analyze import AnalyzeHandler, AnalyzeWork
-from src.application.ports.queue import ClaimedJob
+from src.application.dto.analysis import AnalyzeWork
 from src.application.quality.batch import evaluate_calls
 from src.di.http import create_app
 from src.di.requests import session_dep
-from src.domain.calls.contracts import SPEECH_ROLE_READER, JobKind, JobLane, Speaker
+from src.domain.calls.contracts import SPEECH_ROLE_READER, JobKind, Speaker
 from src.domain.quality.script import CURRENT_SCRIPT
 from src.infrastructure.clients.quality import QualityModelError
 from src.infrastructure.persistence.evaluation import (
@@ -37,7 +36,7 @@ from src.infrastructure.persistence.evaluation import (
     find_candidates,
 )
 from src.infrastructure.persistence.reprocessing import reprocess
-from src.infrastructure.persistence.stages.repository import PostgresStagePersistence
+from src.infrastructure.persistence.stages.analyze import store_result
 from src.presentation.http.auth import Principal, current_principal
 from src.setting.config import Settings, get_settings
 from tests.speech_db_support import speech_test_database_url
@@ -1085,19 +1084,6 @@ async def test_mono_roles_are_not_written_into_a_transcript_that_changed(
     assert await _rows(sessions) == []
 
 
-def _analyze_job(call_id: uuid.UUID) -> ClaimedJob:
-    return ClaimedJob(
-        id=uuid.uuid4(),
-        call_id=call_id,
-        kind=JobKind.ANALYZE,
-        lane=JobLane.DAILY,
-        attempts=1,
-        max_attempts=3,
-        payload={},
-        lease_seconds=300,
-    )
-
-
 async def _expect_no_evaluation(
     sessions: Sessions, api: httpx.AsyncClient, call_id: uuid.UUID
 ) -> None:
@@ -1134,7 +1120,7 @@ async def test_roles_written_by_the_analysis_drop_the_evaluation(
     # Разбор без ролей оценку не трогает: менять ему нечего.
     work = AnalyzeWork(node_id=None, path=(), sentiment=None, summary=None)
     async with sessions() as session, session.begin():
-        await AnalyzeHandler().store(PostgresStagePersistence(session), _analyze_job(call_id), work)
+        await store_result(session, call_id, work)
     assert (await api.get(f"/api/v1/calls/{call_id}/quality")).json()["score"] == 100
 
     # Разбор читал звонок ещё без ролей, а записал свои уже после оценки.
@@ -1146,7 +1132,7 @@ async def test_roles_written_by_the_analysis_drop_the_evaluation(
         roles=((0, Speaker.CLIENT), (1, Speaker.OPERATOR)),
     )
     async with sessions() as session, session.begin():
-        await AnalyzeHandler().store(PostgresStagePersistence(session), _analyze_job(call_id), work)
+        await store_result(session, call_id, work)
 
     assert await _roles_in_base(sessions, call_id) == ("llm_attribution", ["client", "operator"])
     assert await _rows(sessions) == []

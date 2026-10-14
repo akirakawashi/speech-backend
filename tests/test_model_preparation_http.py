@@ -2,14 +2,14 @@
 
 import httpx
 import pytest
-from pydantic import ValidationError
 
-from src.application.dto.maintenance import MaintenanceRequest
 from src.di.http import create_app
 from src.setting.config import Settings
 
 
-@pytest.mark.parametrize("route", ["model-requests", "quality-jobs", "quality-steps"])
+@pytest.mark.parametrize(
+    "route", ["model-requests", "quality-jobs", "quality-steps", "worker-plan"]
+)
 @pytest.mark.parametrize("token", ["", "worker-secret"])
 @pytest.mark.parametrize("authorization", [None, "Bearer wrong", "Bearer worker-secret"])
 async def test_retired_model_routes_are_absent_without_database_access(route, token, authorization):
@@ -35,9 +35,3 @@ async def test_retired_model_routes_are_absent_without_database_access(route, to
     assert response.status_code == 404
     assert "PRIVATE_TRANSCRIPT" not in response.text
     assert "private-input" not in response.text and "worker-secret" not in response.text
-
-
-def test_worker_plan_cannot_request_backend_quality_schedule():
-    """Оценку ставит локальный сценарий бэкенда; воркер запрашивает только источники."""
-    with pytest.raises(ValidationError):
-        MaintenanceRequest(action="quality")

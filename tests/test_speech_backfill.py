@@ -63,10 +63,6 @@ class _Source:
             ),
         )
 
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:  # pragma: no cover
-        raise AssertionError("бэкфилл не качает аудио — это делает этап приёма")
-        yield b""
-
 
 @pytest.fixture
 async def stand() -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], PostgresJobQueue]]:
@@ -452,3 +448,38 @@ async def test_uniqueness_is_what_makes_a_repeat_safe(stand: Any) -> None:
     assert any(
         onto == "speech_jobs" and "call_id" in rule and "kind" in rule for onto, rule in rules
     ), "уникальность (call_id, kind) снята — повтор суток начнёт плодить задания"
+
+
+async def test_stale_history_progress_cannot_undo_pause_or_restart(stand) -> None:
+    """Отложенный шаг старого прогона не сдвигает заново открытое или приостановленное окно."""
+    from src.infrastructure.persistence.backfill import PostgresBackfillRepository
+
+    maker, _ = stand
+    repository = PostgresBackfillRepository(maker)
+    first = await start(maker, window_days=3, now=NOW)
+    paused = await repository.pause(True)
+    actual = await repository.advance(
+        "ncc_backfill", first.cursor - timedelta(days=1), False, expected=first
+    )
+    assert actual == paused
+    replacement = await start(maker, window_days=7, now=NOW + timedelta(days=1), restart=True)
+    assert (
+        await repository.advance(
+            "ncc_backfill", first.cursor - timedelta(days=1), False, expected=paused
+        )
+        == replacement
+    )
+
+
+async def test_concurrent_open_does_not_reset_active_history_without_restart(stand) -> None:
+    """SQL открытия защищает окно даже после предварительной проверки application."""
+    from src.infrastructure.persistence.backfill import PostgresBackfillRepository
+
+    maker, _ = stand
+    repository = PostgresBackfillRepository(maker)
+    first = await start(maker, window_days=3, now=NOW)
+    with pytest.raises(RuntimeError, match="уже идёт"):
+        await repository.open_window(
+            "ncc_backfill", first.window_from - timedelta(days=3), first.window_until
+        )
+    assert await read_state(maker) == first

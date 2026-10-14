@@ -8,10 +8,10 @@ from src.application.dto.analysis_processing import AnalysisClaim, AnalysisOutco
 from src.application.dto.calls import JobErrorClass, JobKind, JobLane, JobStatus, is_terminal_error
 from src.application.dto.pipeline import AnalyzeWork
 from src.application.errors.analysis_processing import AnalysisProcessingBusy
-from src.application.pipeline.stages import StageError
+from src.application.errors.stages import StageError
+from src.application.ports.analysis import AnalysisBackend
 from src.application.ports.analysis_processing import AnalysisProcessingRepository
 from src.application.ports.queue import ExpiredJob
-from src.application.ports.recordings import AnalysisBackend
 from src.domain.calls.analysis_processing import LostAnalysisLease, require_analysis_lease
 
 logger = logging.getLogger(__name__)

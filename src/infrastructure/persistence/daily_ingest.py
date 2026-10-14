@@ -336,6 +336,18 @@ class PostgresIngestTransaction:
         )
         return RegisteredCall(call_id=uuid.UUID(str(call_id)), is_new=is_new)
 
+    async def has_ingest(self, call_id: uuid.UUID) -> bool:
+        """Проверить любое состояние ingest; готовое/отложенное задание не назначается повторно."""
+        return bool(
+            await self._session.scalar(
+                text(
+                    "SELECT EXISTS(SELECT 1 FROM speech_jobs "
+                    "WHERE call_id=:call_id AND kind='ingest')"
+                ),
+                {"call_id": call_id},
+            )
+        )
+
     async def enqueue(self, job: NewJob) -> uuid.UUID | None:
         """Поставить этап в общей транзакции дня."""
         return await self._queue.enqueue(self._session, job)

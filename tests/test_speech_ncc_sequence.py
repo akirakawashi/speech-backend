@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -24,7 +23,6 @@ from src.infrastructure.sources.ncc.sequence import (
     SequenceWalkSource,
     SessionTemplate,
 )
-from src.infrastructure.sources.ncc.source import RecordingNotAvailable
 
 EPOCH = "1778844752"
 BASE = datetime(2026, 9, 1, tzinfo=UTC)
@@ -65,13 +63,6 @@ class _FakeClient:
         if entry is None or entry[0] != domain:
             return RecordingHead(exists=False)
         return RecordingHead(exists=True, modified=entry[1])
-
-    async def download(self, session_id: str) -> AsyncIterator[bytes]:
-        _, seq = SessionTemplate.parse(session_id)
-        if seq not in self.universe:
-            raise RecordingNotAvailable(session_id)
-        yield b"ID3"
-        yield session_id.encode()
 
 
 def _source(
@@ -315,24 +306,6 @@ async def test_a_night_lull_does_not_end_the_day_early() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Скачивание
-# --------------------------------------------------------------------------- #
-
-
-async def test_audio_streams_by_session_id() -> None:
-    universe = _universe(2000)
-    source, _client = _source(universe, anchor_seq=FIRST_SEQ + 1990)
-    day = (BASE + timedelta(hours=1)).date()
-    refs = await source.list_calls(day)
-    assert refs
-
-    chunks = [chunk async for chunk in await source.open_audio(refs[0])]
-
-    assert chunks[0] == b"ID3"
-    assert chunks[1] == refs[0].session_id.encode()
-
-
-# --------------------------------------------------------------------------- #
 # Проводка: источник должен собираться фабрикой, а не только руками
 # --------------------------------------------------------------------------- #
 
@@ -362,7 +335,7 @@ def test_the_factory_actually_builds_this_source() -> None:
     source = build_daily_batch_source(_Settings())  # type: ignore[arg-type]
 
     assert source.name == "ncc_sequence"
-    assert hasattr(source, "list_calls") and hasattr(source, "open_audio")
+    assert hasattr(source, "list_calls")
 
 
 def test_the_factory_refuses_a_sequence_source_without_an_anchor() -> None:

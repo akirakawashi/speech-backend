@@ -61,7 +61,7 @@ async def start(
             )
     until = _midnight(now or datetime.now(UTC))
     window_from = until - timedelta(days=window_days)
-    return await repository.open_window(cursor, window_from, until)
+    return await repository.open_window(cursor, window_from, until, restart=restart)
 
 
 async def set_paused(repository: BackfillRepository, *, paused: bool) -> BackfillState:
@@ -130,11 +130,11 @@ async def _advance(
 ) -> BackfillState:
     """Сохранить прогресс окна истории после завершённых дней."""
     done = to <= state.window_from
-    return await repository.advance(cursor, to, done)
+    return await repository.advance(cursor, to, done, expected=state)
 
 
 async def _finish(
     repository: BackfillRepository, state: BackfillState, *, cursor: str = CURSOR_SOURCE
 ) -> BackfillState:
     """Пометить окно истории завершённым после обработки последнего дня."""
-    return await repository.advance(cursor, state.window_from, True)
+    return await repository.advance(cursor, state.window_from, True, expected=state)

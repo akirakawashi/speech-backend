@@ -17,7 +17,6 @@ from src.infrastructure.sources.ncc.source import (
     CallRef,
     DailyBatchSource,
     LocalExportSource,
-    RecordingNotAvailable,
     build_daily_batch_source,
     parse_object_key,
 )
@@ -156,16 +155,6 @@ async def test_the_same_call_in_two_folders_is_listed_once(tmp_path: Path) -> No
     assert len(refs) == 1
 
 
-async def test_audio_is_streamed_not_read_whole(export: Path) -> None:
-    source = LocalExportSource(export, chunk_size=4)
-    (ref,) = await source.list_calls(date(2026, 1, 19))
-
-    chunks = [chunk async for chunk in await source.open_audio(ref)]
-
-    assert len(chunks) > 1, "поток обязан отдаваться кусками, а не одним куском"
-    assert b"".join(chunks) == b"ID3fake-audio-bytes"
-
-
 async def test_available_days_are_discovered_from_the_export(export: Path) -> None:
     assert await LocalExportSource(export).available_days() == [
         date(2026, 1, 14),
@@ -184,21 +173,6 @@ async def test_missing_export_directory_raises_rather_than_returning_nothing(
     """
     with pytest.raises(FileNotFoundError):
         await LocalExportSource(tmp_path / "нет-такого").list_calls(date(2026, 1, 14))
-
-
-async def test_audio_that_disappeared_between_listing_and_download_raises(export: Path) -> None:
-    """`RecordingNotAvailable`, а не `FileNotFoundError`.
-
-    Отсутствие записи — часть контракта порта, а не деталь файлового адаптера:
-    этап скачивания обязан отличать его от поломки источника одинаково для всех
-    адаптеров, и `404` от REST означает ровно то же самое.
-    """
-    source = LocalExportSource(export)
-    (ref,) = await source.list_calls(date(2026, 1, 19))
-    Path(ref.audio_locator).unlink()
-
-    with pytest.raises(RecordingNotAvailable):
-        await source.open_audio(ref)
 
 
 def test_local_export_satisfies_the_port(export: Path) -> None:

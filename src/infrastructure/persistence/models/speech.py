@@ -504,6 +504,7 @@ class SpeechTranscript(SpeechBase):
 
     __tablename__ = "speech_transcripts"
     __table_args__ = (
+        UniqueConstraint("call_id", "id", name="uq_speech_transcripts_call_identity"),
         CheckConstraint(_in("role_method", RoleMethod), name="ck_speech_transcripts_role_method"),
     )
 

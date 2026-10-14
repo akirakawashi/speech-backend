@@ -1,52 +1,10 @@
-"""Контракт 1.0: бэкенд планирует обслуживание, воркер выполняет команды."""
+"""Локальная постановка оценки бэкендом; внешних команд обслуживания здесь нет."""
 
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
-from src.application.dto.calls import CallSource
-from src.application.dto.daily_ingest import DayShare
 from src.application.dto.quality_batch import RunEvaluation
-
-MaintenanceAction = Literal["ncc", "telphin"]
-
-
-class MaintenanceRequest(BaseModel):
-    """Назвать действие и момент его последнего начала; при первом запуске момент пустой."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    contract_version: Literal["1.0"] = "1.0"
-    action: MaintenanceAction
-    last_started: AwareDatetime | None = None
-
-
-class CatchUpCommand(BaseModel):
-    """Параметры приёма свежих звонков, выбранные бэкендом."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    source: CallSource
-    timezone: str = Field(min_length=1)
-    day_share: DayShare | None = None
-    priority: int | None = Field(default=None, ge=0)
-
-
-class MaintenancePlan(BaseModel):
-    """Время и одна команда; ожидание не занимает обработчик общей очереди."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-    contract_version: Literal["1.0"] = "1.0"
-    action: MaintenanceAction
-    run_at: AwareDatetime
-    wait_seconds: float = Field(default=0, ge=0)
-    ingest: CatchUpCommand | None = None
-    evaluation: None = None
-
-    @model_validator(mode="after")
-    def command_matches_action(self) -> Self:
-        """Отклонить план без команды или с командой другого источника."""
-        if self.ingest is None or self.ingest.source != self.action:
-            raise ValueError("ingestion plan needs the matching source")
-        return self
 
 
 class QualityQueueRequest(BaseModel):

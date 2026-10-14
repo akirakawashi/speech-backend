@@ -72,10 +72,6 @@ class _Source:
     async def list_calls(self, day: date) -> Sequence[CallRef]:
         return self._refs
 
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:  # pragma: no cover
-        raise AssertionError("суточный прогон записи не скачивает")
-        yield b""
-
 
 Env = tuple[async_sessionmaker[AsyncSession], PostgresJobQueue]
 

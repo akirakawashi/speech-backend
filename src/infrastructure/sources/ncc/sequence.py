@@ -51,14 +51,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
-from src.infrastructure.sources.ncc.source import CallRef, RecordingNotAvailable
+from src.application.dto.sources import CallRef
 
 if TYPE_CHECKING:  # pragma: no cover - только типы, цикла импорта нет
     from src.infrastructure.sources.ncc.rest import NccRestClient, RecordingHead
@@ -183,7 +183,7 @@ class SequenceWalkSource:
     """Звонки за сутки — обходом сквозного счётчика сессий.
 
     Реализует тот же порт `DailyBatchSource`, что и остальные источники:
-    `list_calls(day)` и `open_audio(ref)`. Внутри — обход `seq` с `HEAD` для
+    `list_calls(day)`. Внутри — обход `seq` с `HEAD` для
     даты, снаружи — обычный источник, который приёму безразлично, откуда берёт.
     """
 
@@ -505,20 +505,9 @@ class SequenceWalkSource:
                     return hit.seq, hit.modified
         return None
 
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:
-        """Запись по идентификатору сессии.
 
-        `RecordingNotAvailable` из клиента проходит наверх как есть: отличать
-        «записи нет» от «источник сломан» — обязанность этапа скачивания.
-        """
-        return self._client.download(ref.session_id)
-
-
-# Подсказка для проверки типов: `RecordingNotAvailable` переиспользуется
-# вызывающими из этого модуля.
 __all__ = [
     "SequenceWalkSource",
     "SessionTemplate",
     "SequenceNotConfigured",
-    "RecordingNotAvailable",
 ]

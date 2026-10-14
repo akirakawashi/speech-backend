@@ -174,6 +174,17 @@ class AnalysisStatus(StrEnum):
     SKIPPED = "skipped"
 
 
+class AnalysisBindingKind(StrEnum):
+    """Насколько доказана связь актуального анализа с исходным текстом.
+
+    VERIFIED означает вычисление по проверенному снимку. LEGACY_OBSERVED —
+    перенос прежних полей, для которых исходный запрос уже неизвестен.
+    """
+
+    VERIFIED = "verified"
+    LEGACY_OBSERVED = "legacy_observed"
+
+
 class Segment(StrEnum):
     """Кто звонил: юридическое лицо или частное.
 

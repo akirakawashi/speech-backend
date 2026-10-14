@@ -3,12 +3,10 @@
 from src.application.dto.maintenance import QualityQueueReport
 from src.application.dto.quality_batch import RunEvaluation
 from src.application.quality.batch import EvaluationService
-from src.application.quality.execution import QualityExecutionService
 from src.application.quality.queue_command import QueuedEvaluationService
 from src.application.quality.scheduling import WorkerMaintenanceService
-from src.di.worker_tasks import build_quality_preparation, build_worker_schedule
-from src.infrastructure.clients.local_quality import LocalQualitySteps
-from src.infrastructure.clients.quality import PreparedQualityModelClient, build_quality_client
+from src.di.worker_tasks import build_worker_schedule
+from src.infrastructure.clients.quality import build_quality_client
 from src.infrastructure.persistence.evaluation import PostgresEvaluationRepository
 from src.infrastructure.persistence.quality_jobs import PostgresQualityQueueRepository
 from src.infrastructure.persistence.session import (
@@ -17,7 +15,7 @@ from src.infrastructure.persistence.session import (
     get_speech_ms_sessionmaker,
     speech_schema_is_ready,
 )
-from src.setting.config import Settings, get_settings
+from src.setting.config import get_settings
 
 
 def build_evaluation() -> EvaluationService:
@@ -27,14 +25,6 @@ def build_evaluation() -> EvaluationService:
         PostgresEvaluationRepository(get_speech_ms_sessionmaker(settings)),
         lambda: build_quality_client(settings),
         timezone=settings.speech_display_timezone,
-    )
-
-
-def build_queue_evaluation(settings: Settings) -> QualityExecutionService:
-    """Собрать оценку в сохранённой команде бэкенда по общему контракту шагов."""
-    return QualityExecutionService(
-        LocalQualitySteps(build_quality_preparation(settings)),
-        PreparedQualityModelClient(build_quality_client(settings)),
     )
 
 
@@ -54,7 +44,6 @@ async def run_queued_evaluation(query: RunEvaluation) -> QualityQueueReport:
             build_worker_schedule(settings),
             PostgresQualityQueueRepository(sessions),
             PostgresEvaluationRepository(sessions),
-            worker_token="",
         )
         return await QueuedEvaluationService(application).run(query)
     finally:

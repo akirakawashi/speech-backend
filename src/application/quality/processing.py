@@ -8,7 +8,7 @@ from src.application.dto.job_processing import JobProcessingClaim, JobProcessing
 from src.application.dto.quality import CURRENT_SCRIPT
 from src.application.dto.quality_execution import QualityWork
 from src.application.errors.job_processing import JobProcessingBusy
-from src.application.pipeline.stages import StageError
+from src.application.errors.stages import StageError
 from src.application.ports.evaluation_processing import EvaluationProcessingRepository
 from src.application.quality.computation import compute_quality
 from src.application.quality.evaluation import QualityModel

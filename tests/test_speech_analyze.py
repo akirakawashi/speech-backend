@@ -13,24 +13,19 @@ from typing import Any, cast
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.pipeline.analyze import MAX_OUTPUT_ATTEMPTS, AnalyzeHandler
-from src.application.pipeline.stages import StageDeps, StageError
-from src.application.ports.queue import ClaimedJob
-from src.di.pipeline import build_stage_deps
+from src.application.analysis.execution import MAX_OUTPUT_ATTEMPTS, AnalysisExecutionService
+from src.application.errors.stages import StageError
 from src.domain.calls.analysis import SUMMARY_LIMIT
 from src.domain.calls.contracts import (
     AnalysisStatus,
     JobErrorClass,
-    JobKind,
-    JobLane,
-    ProcessingStatus,
     RoleMethod,
     Sentiment,
     Speaker,
 )
 from src.infrastructure.clients.analysis import AnalysisError, AnalysisNotConfigured
 from src.infrastructure.persistence.classifier import EMPTY_LEVEL_LABEL, label_key
-from src.infrastructure.persistence.stages.repository import PostgresStagePersistence
+from src.infrastructure.persistence.stages.analyze import load, store_result
 
 CALL_ID = uuid.UUID("44444444-5555-6666-7777-888888888888")
 
@@ -157,34 +152,22 @@ def _nodes() -> list[dict[str, Any]]:
     ]
 
 
-def _deps(session: _Session, workflow: _Workflow | None) -> StageDeps:
-    return build_stage_deps(
-        settings=None, sessionmaker=lambda: cast(AsyncSession, session), analysis=workflow
-    )
-
-
-def _job() -> ClaimedJob:
-    return ClaimedJob(
-        id=uuid.uuid4(),
-        call_id=CALL_ID,
-        kind=JobKind.ANALYZE,
-        lane=JobLane.DAILY,
-        attempts=1,
-        max_attempts=3,
-        payload={},
-        lease_seconds=300,
-    )
-
-
 def _ok(**overrides: Any) -> dict[str, Any]:
     answer: dict[str, Any] = {"path": WIFI_PATH, "sentiment": "negative", "summary": "Резюме."}
     answer.update(overrides)
     return answer
 
 
+async def _execute(session: _Session, workflow: _Workflow | None):
+    """Загрузить DTO настоящим SQL-адаптером и выполнить действующий сценарий анализа."""
+    data = await load(cast(AsyncSession, session), CALL_ID)
+    assert data is not None
+    return await AnalysisExecutionService().execute(CALL_ID, data, workflow)
+
+
 async def _work(answer: dict[str, Any], *, nodes: list[dict[str, Any]] | None = None):
     session = _Session(_call(), _segments("текст"), _nodes() if nodes is None else nodes)
-    return await AnalyzeHandler().work(_job(), _deps(session, _Workflow(answer)))
+    return await _execute(session, _Workflow(answer))
 
 
 # --------------------------------------------------------------------------- #
@@ -206,7 +189,7 @@ async def test_the_transcript_text_reaches_the_model_as_it_is() -> None:
     session = _Session(_call(), _segments("номер 89780001122"), _nodes())
     workflow = _Workflow(_ok())
 
-    await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    await _execute(session, workflow)
 
     sent = workflow.inputs[0]["segments"]
     assert sent == [{"seq": 0, "speaker": "unknown", "text": "номер 89780001122"}]
@@ -217,7 +200,7 @@ async def test_the_model_sees_the_switched_on_branches_as_a_tree() -> None:
     session = _Session(_call(), _segments("текст"), _nodes())
     workflow = _Workflow(_ok())
 
-    await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    await _execute(session, workflow)
 
     sent = workflow.inputs[0]
     assert sent["classifier"] == {
@@ -236,20 +219,18 @@ async def test_the_model_sees_the_switched_on_branches_as_a_tree() -> None:
     )
 
 
-async def test_storing_marks_the_call_done_and_ends_the_chain() -> None:
+async def test_storing_records_the_analysis_result() -> None:
     session = _Session(_call(), _segments("текст"), _nodes())
-    work = await AnalyzeHandler().work(_job(), _deps(session, _Workflow(_ok())))
+    work = await _execute(session, _Workflow(_ok()))
 
     session.writes.clear()
-    result = await AnalyzeHandler().store(PostgresStagePersistence(session), _job(), work)
+    await store_result(session, CALL_ID, work)
 
     written = session.writes[0]
     assert written["analysis_status"] == AnalysisStatus.DONE.value
     assert written["ai_node_id"] == WIFI
     assert written["sentiment"] == "negative"
     assert (written["ai_suggestion"], written["ai_suggestion_node_id"]) == (None, None)
-    assert result.processing_status is ProcessingStatus.DONE
-    assert result.next_kind is None, "цепочка кончается"
 
 
 # --------------------------------------------------------------------------- #
@@ -311,10 +292,10 @@ async def test_storing_passes_both_dimensions_to_the_update() -> None:
     чтением и записью никто не сопоставил проект.
     """
     session = _Session(_call(), _segments("текст"), _nodes())
-    work = await AnalyzeHandler().work(_job(), _deps(session, _Workflow(_ok())))
+    work = await _execute(session, _Workflow(_ok()))
 
     session.writes.clear()
-    await AnalyzeHandler().store(PostgresStagePersistence(session), _job(), work)
+    await store_result(session, CALL_ID, work)
 
     written = session.writes[0]
     assert (written["segment"], written["product"]) == ("individual", "broadband")
@@ -325,7 +306,7 @@ async def test_an_empty_classifier_is_a_deployment_error_and_the_model_is_not_ca
     workflow = _Workflow(_ok())
 
     with pytest.raises(StageError) as raised:
-        await AnalyzeHandler().work(_job(), _deps(session, workflow))
+        await _execute(session, workflow)
 
     assert raised.value.error_class is JobErrorClass.INVALID_OUTPUT
     assert "seed_classifier" in str(raised.value)
@@ -354,13 +335,13 @@ async def test_a_suggestion_that_is_a_tree_path_is_that_node() -> None:
 async def test_a_suggestion_with_a_new_wording_is_kept_in_words_and_stored() -> None:
     session = _Session(_call(), _segments("текст"), _nodes())
     wording = [*WIFI_PATH[:4], "Роутер не раздаёт Wi-Fi"]
-    work = await AnalyzeHandler().work(_job(), _deps(session, _Workflow(_ok(ai_path=wording))))
+    work = await _execute(session, _Workflow(_ok(ai_path=wording)))
 
     assert work.suggestion == tuple(wording)
     assert work.suggestion_node_id is None
 
     session.writes.clear()
-    await AnalyzeHandler().store(PostgresStagePersistence(session), _job(), work)
+    await store_result(session, CALL_ID, work)
     written = session.writes[0]
     assert json.loads(written["ai_suggestion"]) == wording
     assert written["ai_suggestion_node_id"] is None
@@ -380,7 +361,7 @@ async def test_roles_from_the_model_are_ignored_when_they_were_measured() -> Non
     session = _Session(_call(role_method=RoleMethod.STEREO_ENERGY.value), _segments("а"), _nodes())
     workflow = _Workflow(_ok(roles=[{"seq": 0, "speaker": "client"}]))
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert work.roles == ()
     assert workflow.inputs[0]["needs_roles"] is False
@@ -393,7 +374,7 @@ async def test_roles_are_applied_when_nobody_measured_them() -> None:
         _ok(roles=[{"seq": 0, "speaker": "operator"}, {"seq": 1, "speaker": "client"}])
     )
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert workflow.inputs[0]["needs_roles"] is True
     assert work.roles == ((0, Speaker.OPERATOR), (1, Speaker.CLIENT))
@@ -402,12 +383,10 @@ async def test_roles_are_applied_when_nobody_measured_them() -> None:
 async def test_storing_roles_also_records_how_they_were_obtained() -> None:
     """Иначе транскрипт утверждал бы, что роли получены энергией каналов."""
     session = _Session(_call(role_method=RoleMethod.NONE.value), _segments("а"), _nodes())
-    work = await AnalyzeHandler().work(
-        _job(), _deps(session, _Workflow(_ok(roles=[{"seq": 0, "speaker": "client"}])))
-    )
+    work = await _execute(session, _Workflow(_ok(roles=[{"seq": 0, "speaker": "client"}])))
 
     session.writes.clear()
-    await AnalyzeHandler().store(PostgresStagePersistence(session), _job(), work)
+    await store_result(session, CALL_ID, work)
 
     methods = [w for w in session.writes if "role_method" in w]
     assert methods and methods[0]["role_method"] == RoleMethod.LLM_ATTRIBUTION.value
@@ -422,10 +401,10 @@ async def test_storing_roles_drops_the_script_evaluation_made_on_the_old_ones(
 ) -> None:
     """Оценка по скрипту стояла на прежних ролях. Не записав ролей, разбор её не трогает."""
     session = _Session(_call(role_method=RoleMethod.NONE.value), _segments("а"), _nodes())
-    work = await AnalyzeHandler().work(_job(), _deps(session, _Workflow(_ok(roles=roles))))
+    work = await _execute(session, _Workflow(_ok(roles=roles)))
 
     session.queries.clear()
-    await AnalyzeHandler().store(PostgresStagePersistence(session), _job(), work)
+    await store_result(session, CALL_ID, work)
 
     deletes = [sql for sql in session.queries if "speech_call_evaluations" in sql]
     assert bool(deletes) is dropped
@@ -439,7 +418,7 @@ async def test_a_nonsense_role_is_dropped_and_the_rest_survive() -> None:
         _ok(roles=[{"seq": 0, "speaker": "мимо"}, {"seq": 1, "speaker": "client"}])
     )
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert work.roles == ((1, Speaker.CLIENT),)
 
@@ -458,7 +437,7 @@ async def test_the_model_gets_a_second_chance_before_the_job_dies() -> None:
     session = _Session(_call(), _segments("текст"), _nodes())
     workflow = _Workflow({"path": WIFI_PATH}, _ok())
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert len(workflow.inputs) == 2, "второй заход состоялся"
     assert work.sentiment is Sentiment.NEGATIVE
@@ -480,7 +459,7 @@ async def test_unusable_answers_end_the_job_without_returning_it_to_the_queue() 
     workflow = _Workflow(*unusable)
 
     with pytest.raises(StageError) as raised:
-        await AnalyzeHandler().work(_job(), _deps(session, workflow))
+        await _execute(session, workflow)
 
     assert raised.value.error_class is JobErrorClass.INVALID_OUTPUT
     assert len(workflow.inputs) == MAX_OUTPUT_ATTEMPTS, "число вызовов разошлось с договором"
@@ -497,7 +476,7 @@ async def test_a_late_good_answer_still_counts() -> None:
     misses = [{"path": ["x"]}] * (MAX_OUTPUT_ATTEMPTS - 1)
     workflow = _Workflow(*misses, {"path": WIFI_PATH, "sentiment": "negative"})
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert work.node_id == WIFI
     assert len(workflow.inputs) == MAX_OUTPUT_ATTEMPTS
@@ -524,7 +503,7 @@ async def test_an_answer_off_the_schema_is_not_patched_with_defaults(answer: dic
     session = _Session(_call(), _segments("текст"), _nodes())
 
     with pytest.raises(StageError):
-        await AnalyzeHandler().work(_job(), _deps(session, _Workflow(answer, answer, answer)))
+        await _execute(session, _Workflow(answer, answer, answer))
 
 
 # --------------------------------------------------------------------------- #
@@ -537,7 +516,7 @@ async def test_a_timeout_keeps_its_class() -> None:
     workflow = _Workflow(error=AnalysisError("timeout", retryable=True))
 
     with pytest.raises(StageError) as raised:
-        await AnalyzeHandler().work(_job(), _deps(session, workflow))
+        await _execute(session, workflow)
 
     assert raised.value.error_class is JobErrorClass.TIMEOUT
 
@@ -548,7 +527,7 @@ async def test_a_rejected_request_is_not_retried_as_a_provider_hiccup() -> None:
     workflow = _Workflow(error=AnalysisError("http_401", retryable=False))
 
     with pytest.raises(StageError) as raised:
-        await AnalyzeHandler().work(_job(), _deps(session, workflow))
+        await _execute(session, workflow)
 
     assert raised.value.error_class is JobErrorClass.PROVIDER_ERROR
 
@@ -558,7 +537,7 @@ async def test_an_unconfigured_workflow_is_a_deployment_error() -> None:
     workflow = _Workflow(error=AnalysisNotConfigured("нет ключа"))
 
     with pytest.raises(StageError) as raised:
-        await AnalyzeHandler().work(_job(), _deps(session, workflow))
+        await _execute(session, workflow)
 
     assert raised.value.error_class is JobErrorClass.INVALID_OUTPUT
 
@@ -567,7 +546,7 @@ async def test_a_call_without_segments_is_refused() -> None:
     session = _Session(_call(), [], _nodes())
 
     with pytest.raises(StageError) as raised:
-        await AnalyzeHandler().work(_job(), _deps(session, _Workflow(_ok())))
+        await _execute(session, _Workflow(_ok()))
 
     assert raised.value.error_class is JobErrorClass.NOT_FOUND
 
@@ -586,7 +565,7 @@ async def test_the_active_reasons_go_to_the_model_as_a_reference() -> None:
     session = _Session(_call(), _segments("текст"), _nodes(), reasons=_REASONS)
     workflow = _Workflow(_ok())
 
-    await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    await _execute(session, workflow)
 
     assert workflow.inputs[0]["reasons"] == (
         "K05 · Не работает домашний интернет — ШПД не работает совсем.\n"
@@ -599,10 +578,10 @@ async def test_the_active_reasons_go_to_the_model_as_a_reference() -> None:
 async def test_a_reason_from_the_reference_is_stored_with_the_call() -> None:
     session = _Session(_call(), _segments("текст"), _nodes(), reasons=_REASONS)
     answer = _ok(call_reason="Не работает домашний интернет.", call_reason_code="K05")
-    work = await AnalyzeHandler().work(_job(), _deps(session, _Workflow(answer)))
+    work = await _execute(session, _Workflow(answer))
 
     session.writes.clear()
-    await AnalyzeHandler().store(PostgresStagePersistence(session), _job(), work)
+    await store_result(session, CALL_ID, work)
 
     written = session.writes[0]
     assert (written["call_reason"], written["call_reason_code"]) == (
@@ -616,7 +595,7 @@ async def test_without_a_reference_the_call_is_still_analysed() -> None:
     session = _Session(_call(), _segments("текст"), _nodes())
     workflow = _Workflow(_ok(call_reason="Текст.", call_reason_code="K05"))
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert workflow.inputs[0]["reasons"] == ""
     assert (work.call_reason, work.call_reason_code) == (None, None)
@@ -629,7 +608,7 @@ async def test_a_reference_too_long_for_the_workflow_is_not_sent() -> None:
     session = _Session(_call(), _segments("текст"), _nodes(), reasons=huge)
     workflow = _Workflow(_ok(call_reason="Текст.", call_reason_code="K05"))
 
-    work = await AnalyzeHandler().work(_job(), _deps(session, workflow))
+    work = await _execute(session, workflow)
 
     assert workflow.inputs[0]["reasons"] == ""
     assert work.call_reason_code is None

@@ -7,14 +7,12 @@ MinIO проверяется отдельно, на стенде.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 import httpx
 import pytest
 
 from src.infrastructure.storage.recordings import (
-    MAX_OBJECT_BYTES,
     SpeechAudioStorage,
     StorageConfig,
     StorageError,
@@ -29,11 +27,6 @@ CONFIG = StorageConfig(
     access_key_id="key",
     secret_key="secret",
 )
-
-
-async def _chunks(*parts: bytes) -> AsyncIterator[bytes]:
-    for part in parts:
-        yield part
 
 
 #: Поля `CONFIG` россыпью: тесты ниже подменяют один адрес и оставляют
@@ -81,60 +74,6 @@ def test_storage_without_configuration_refuses_to_be_built() -> None:
                 secret_key="",
             )
         )
-
-
-async def test_put_signs_the_request_and_reports_the_written_size() -> None:
-    seen: dict[str, object] = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen["method"] = request.method
-        seen["url"] = str(request.url)
-        seen["auth"] = request.headers.get("Authorization", "")
-        seen["sha"] = request.headers.get("x-amz-content-sha256", "")
-        seen["type"] = request.headers.get("Content-Type", "")
-        seen["body"] = request.content
-        return httpx.Response(200)
-
-    written = await _storage(handler).put("calls/2026/01/14/x.mp3", _chunks(b"ID3", b"audio"))
-
-    assert written == 8
-    assert seen["method"] == "PUT"
-    # Путь-стиль: без подстановочного DNS `bucket.host` не резолвится.
-    assert seen["url"] == "http://speech-minio:9000/speech-recordings/calls/2026/01/14/x.mp3"
-    assert str(seen["auth"]).startswith("AWS4-HMAC-SHA256 Credential=key/")
-    assert seen["type"] == "audio/mpeg"
-    assert seen["body"] == b"ID3audio"
-    # Хеш тела подписан — целостность проверяется, а не объявляется.
-    assert seen["sha"] != "UNSIGNED-PAYLOAD"
-    assert len(str(seen["sha"])) == 64
-
-
-async def test_an_absurdly_large_object_is_refused_before_it_is_sent() -> None:
-    """Замер: средняя запись 730 КБ, часовой разговор — около 11 МБ.
-
-    Объект в сотни мегабайт означает, что источник отдал не запись. Потолок
-    существует, чтобы это не съело память воркера целиком.
-    """
-
-    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover - не должен вызваться
-        raise AssertionError("запрос не должен был уйти")
-
-    oversized = _chunks(b"x" * (MAX_OBJECT_BYTES + 1))
-    with pytest.raises(StorageError, match="exceeds"):
-        await _storage(handler).put("calls/x.mp3", oversized)
-
-
-async def test_a_refused_write_does_not_leak_the_storage_reply() -> None:
-    """Ответ хранилища может содержать имя бакета, ключи и внутренние адреса."""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(403, text="<Error><Key>secret-bucket/creds</Key></Error>")
-
-    with pytest.raises(StorageError) as caught:
-        await _storage(handler).put("calls/x.mp3", _chunks(b"a"))
-
-    assert "403" in str(caught.value)
-    assert "secret-bucket" not in str(caught.value)
 
 
 async def test_range_requests_are_passed_through_untouched() -> None:
@@ -243,7 +182,7 @@ async def test_an_unreachable_storage_says_so_without_the_transport_error() -> N
         raise httpx.ConnectError("connection refused to 10.0.0.5:9000")
 
     with pytest.raises(StorageError) as caught:
-        await _storage(handler).put("calls/x.mp3", _chunks(b"a"))
+        await _storage(handler).exists("calls/x.mp3")
 
     assert "unreachable" in str(caught.value)
     assert "10.0.0.5" not in str(caught.value)
@@ -335,7 +274,7 @@ async def test_the_host_we_sign_is_the_host_httpx_puts_on_the_wire() -> None:
     storage = SpeechAudioStorage(
         config, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
     )
-    await storage.put("calls/2026/01/14/x.mp3", _chunks(b"a"))
+    await storage.exists("calls/2026/01/14/x.mp3")
 
     assert seen["host"] == config.host
 
@@ -356,7 +295,7 @@ async def test_a_storage_behind_a_prefix_keeps_the_prefix() -> None:
     storage = SpeechAudioStorage(
         config, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
     )
-    await storage.put("calls/2026/01/14/x.mp3", _chunks(b"a"))
+    await storage.exists("calls/2026/01/14/x.mp3")
 
     assert seen["url"] == (
         "http://storage.example:8080/s3/speech-recordings/calls/2026/01/14/x.mp3"

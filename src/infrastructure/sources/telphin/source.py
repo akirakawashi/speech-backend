@@ -4,7 +4,7 @@
 разговором не короче порога; кроме служебных добавочных и группы
 «Переадресации». Всё это — настройки (`SPEECH_TELPHIN_*`), а не код.
 
-Запись качается по `storage_url` из списка — постоянной ссылке хранилища без
+Воркер скачивает запись по `storage_url` из списка — постоянной ссылке без
 аутентификации: так советует руководство (с. 163), и так скачивание не тратит
 лимит API, общий на все приложения клиента. Ссылка — секрет: приём кладёт её в
 отдельную колонку, этап `ingest` стирает после скачивания, в журналы и тексты
@@ -20,15 +20,13 @@ from __future__ import annotations
 import logging
 import re
 from collections import Counter
-from collections.abc import AsyncIterator, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any, Final
 from zoneinfo import ZoneInfo
 
-import httpx
-
 from src.application.dto.calls import CallSource
-from src.infrastructure.sources.ncc.source import CallRef, RecordingNotAvailable
+from src.application.dto.sources import CallRef
 from src.infrastructure.sources.telphin.client import TelphinClient, TelphinError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -115,11 +113,7 @@ def _recording(parts: Iterable[Any]) -> dict[str, Any] | None:
 
 
 class TelphinSource:
-    """Исходящие ШПД с ВАТС Телфина.
-
-    Без клиента API источник умеет только отдавать записи — так его держит
-    воркер: перечислять звонки ему не нужно, и App Secret ему не нужен тоже.
-    """
+    """Перечислить метаданные исходящих ШПД; ссылку записи передать аудиоворкеру."""
 
     name = "telphin"
 
@@ -131,31 +125,22 @@ class TelphinSource:
 
     def __init__(
         self,
-        client: TelphinClient | None,
+        client: TelphinClient,
         *,
         timezone: str = "Europe/Moscow",
         min_talk_s: int = 10,
         excluded_extensions: frozenset[str] = frozenset(),
         excluded_groups: frozenset[int] = frozenset(),
-        timeout_s: float = 60.0,
-        download: httpx.AsyncClient | None = None,
     ) -> None:
-        """Настроить TelphinSource из переданных параметров и зависимостей."""
+        """Принять клиент метаданных, часовой пояс и ограничения отбора звонков."""
         self._client = client
         self._timezone = timezone
         self._min_talk_s = min_talk_s
         self._excluded_extensions = excluded_extensions
         self._excluded_groups = excluded_groups
-        self._timeout_s = timeout_s
-        self._download = download
 
     async def list_calls(self, day: date) -> Sequence[CallRef]:
         """Перечислить метаданные звонков указанного дня без загрузки записей."""
-        if self._client is None:
-            raise RuntimeError(
-                "telphin source has no API client: SPEECH_TELPHIN_APP_ID and "
-                "SPEECH_TELPHIN_APP_SECRET are required to list calls"
-            )
         start, end = day_bounds(day, self._timezone)
         refs: dict[str, CallRef] = {}
         skipped: Counter[str] = Counter()
@@ -229,46 +214,6 @@ class TelphinSource:
             None,
         )
 
-    async def open_audio(self, ref: CallRef) -> AsyncIterator[bytes]:
-        """Запись по ссылке хранилища — без токена, через прокси окружения.
-
-        Ссылки нет — `RecordingNotAvailable`: она живёт до скачивания записи, и
-        вернуть её может повторный приём суток. `404`/`410` — записи у
-        хранилища нет. Остальное — поломка, а не отсутствие записи.
-        """
-        url = ref.audio_url
-        if not url:
-            raise RecordingNotAvailable(
-                f"call {ref.session_id}: no storage link; run the ingest of its day again"
-            )
-        if self._download is None:
-            self._download = httpx.AsyncClient(timeout=self._timeout_s)
-        try:
-            response = await self._download.send(
-                self._download.build_request("GET", url), stream=True
-            )
-        except httpx.HTTPError as exc:
-            # `from None`: цепочка исключения несла бы адрес записи в журнал.
-            raise TelphinError(f"telphin storage: {type(exc).__name__}") from None
-        if response.status_code in (404, 410):
-            await response.aclose()
-            raise RecordingNotAvailable(f"telphin storage has no recording of {ref.session_id}")
-        if response.status_code != 200:
-            await response.aclose()
-            raise TelphinError(f"telphin storage: HTTP {response.status_code} for {ref.session_id}")
-        return _chunks(response)
-
-
-async def _chunks(response: httpx.Response) -> AsyncIterator[bytes]:
-    """Выдать содержимое ответа источника порциями байтов."""
-    try:
-        async for chunk in response.aiter_bytes(1 << 16):
-            yield chunk
-    except httpx.HTTPError as exc:
-        raise TelphinError(f"telphin storage stream: {type(exc).__name__}") from None
-    finally:
-        await response.aclose()
-
 
 def build_telphin_source(settings: Settings) -> TelphinSource:
     """Источник для приёма: с клиентом API. Без ключей — отказ, а не пустые сутки."""
@@ -293,10 +238,4 @@ def build_telphin_source(settings: Settings) -> TelphinSource:
         min_talk_s=settings.speech_telphin_min_talk_seconds,
         excluded_extensions=_names(settings.speech_telphin_excluded_extensions),
         excluded_groups=_ids(settings.speech_telphin_excluded_groups),
-        timeout_s=settings.speech_telphin_timeout_seconds,
     )
-
-
-def build_telphin_audio(settings: Settings) -> TelphinSource:
-    """Источник для воркера: только записи, без клиента API и без его ключей."""
-    return TelphinSource(None, timeout_s=settings.speech_telphin_timeout_seconds)

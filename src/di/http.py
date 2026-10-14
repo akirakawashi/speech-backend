@@ -20,12 +20,12 @@ from src.presentation.http.api import router
 from src.presentation.http.audio_cookie import AudioCookieMiddleware
 from src.presentation.http.auth_routes import router as auth_router
 from src.presentation.http.dashboard_routes import router as dashboard_router
+from src.presentation.http.ingest_control import router as ingest_control_router
 from src.presentation.http.media_routes import router as media_router
 from src.presentation.http.quality_routes import router as quality_router
 from src.presentation.http.report_routes import router as report_router
 from src.presentation.http.routes import router as api_v1_router
 from src.presentation.http.transcription_results import router as transcription_results_router
-from src.presentation.http.worker_tasks import router as worker_tasks_router
 from src.presentation.middleware.request_id import RequestIdMiddleware
 from src.setting.config import Settings, get_settings
 
@@ -70,6 +70,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(report_router)
     app.include_router(quality_router)
     app.include_router(dashboard_router)
-    app.include_router(worker_tasks_router)
+    app.include_router(ingest_control_router)
     app.include_router(transcription_results_router)
     return app

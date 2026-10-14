@@ -32,7 +32,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from src.infrastructure.persistence.base import SpeechBase
+from src.infrastructure.persistence.models import analysis as analysis_models
 from src.setting.config import get_settings
 
 config = context.config
@@ -40,7 +40,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = SpeechBase.metadata
+target_metadata = analysis_models.SpeechCallAnalysis.metadata
 
 
 def get_url() -> str:
@@ -99,7 +99,22 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    asyncio.run(run_async_migrations())
+    """Применить цепочку на переданном соединении либо отдельном async-движке.
+
+    Args:
+        config.attributes["connection"]: Необязательное SQLAlchemy-соединение
+            вызывающего, например для проверки миграций в изолированной схеме.
+
+    Side Effects:
+        Выполняет миграции на выбранном соединении; чужую транзакцию не завершает.
+    """
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        if not isinstance(connection, Connection):
+            raise TypeError("migration connection must be a SQLAlchemy Connection")
+        do_run_migrations(connection)
+    else:
+        asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

@@ -687,7 +687,6 @@ async def test_asr_analysis_and_scheduled_evaluation_share_one_cpu_process(
                 policy,
                 PostgresQualityQueueRepository(env.sessions),
                 PostgresEvaluationRepository(env.sessions),
-                worker_token="",
             ),
             policy,
         )

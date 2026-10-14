@@ -53,6 +53,10 @@ class IngestTransaction(Protocol):
         """Идемпотентно зарегистрировать метаданные звонка."""
         ...
 
+    async def has_ingest(self, call_id: UUID) -> bool:
+        """Проверить наличие первого задания, чтобы повторный приём не бросал жребий заново."""
+        ...
+
     async def enqueue(self, job: NewJob) -> UUID | None:
         """Поставить первый этап в той же транзакции, не меняя известное задание."""
         ...
@@ -81,7 +85,9 @@ class BackfillRepository(Protocol):
         """Получить текущее окно и курсор либо ошибку отсутствующего окна."""
         ...
 
-    async def open_window(self, cursor: str, first: datetime, until: datetime) -> BackfillState:
+    async def open_window(
+        self, cursor: str, first: datetime, until: datetime, *, restart: bool = False
+    ) -> BackfillState:
         """Сохранить уже проверенное окно и вернуть начальное состояние."""
         ...
 
@@ -89,8 +95,10 @@ class BackfillRepository(Protocol):
         """Изменить паузу перечисления и вернуть состояние."""
         ...
 
-    async def advance(self, cursor: str, to: datetime, done: bool) -> BackfillState:
-        """Сохранить новый курсор и признак окончания одной транзакцией."""
+    async def advance(
+        self, cursor: str, to: datetime, done: bool, *, expected: BackfillState
+    ) -> BackfillState:
+        """Продвинуть тот же снимок; смену окна/паузы/курсора вернуть без перезаписи."""
         ...
 
     async def default_window_days(self) -> int:

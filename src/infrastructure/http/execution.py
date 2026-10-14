@@ -1,7 +1,4 @@
-"""Дедлайн, повторы и телеметрия внешнего HTTP-вызова.
-
-Политика Whisper собирается в infrastructure/transcription/execution.py.
-"""
+"""Дедлайн, повторы и телеметрия внешнего HTTP-вызова метаданных NCC."""
 
 from __future__ import annotations
 
@@ -19,11 +16,8 @@ from src.application.dto.adapter import (
     current_adapter_execution_telemetry,
 )
 
-#: Имена целей, под которыми исполнение пишет телеметрию. В монорепозитории тип
-#: собирался в `app/adapters/registry.py` вместе с именами корпоративных
-#: адаптеров чата (Jira, Confluence и другие) — реестр остался там, сюда
-#: перенесены только две цели конвейера речи.
-AdapterExecutionTarget = Literal["speech_transcription", "speech_ncc"]
+#: Цель телеметрии этого исполнителя — запросы метаданных NCC.
+AdapterExecutionTarget = Literal["speech_ncc"]
 
 AdapterRequestFailureReason = Literal[
     "unauthorized",
